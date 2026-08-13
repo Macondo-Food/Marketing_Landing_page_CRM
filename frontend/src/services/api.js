@@ -75,3 +75,10 @@ export function updateLeadEstado(token, id, estado) {
     body: JSON.stringify({ estado }),
   });
 }
+
+// (token) -> { resumen: {...}, respuestas: { [pregunta]: [{ respuesta, total, porcentaje }, ...] } }
+export function getDashboard(token) {
+  return request('/dashboard', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}

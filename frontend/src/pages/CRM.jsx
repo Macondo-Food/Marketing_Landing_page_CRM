@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getLeads, updateLeadEstado } from '../services/api.js';
 import Login from './Login.jsx';
@@ -167,22 +168,39 @@ function Dashboard() {
             Leads
           </h1>
         </div>
-        <button
-          onClick={logout}
-          style={{
-            padding: '8px 16px',
-            borderRadius: 999,
-            border: '1px solid rgba(255,255,255,.16)',
-            background: 'transparent',
-            color: '#fff',
-            cursor: 'pointer',
-            fontFamily: 'Montserrat, sans-serif',
-            fontWeight: 600,
-            fontSize: 12,
-          }}
-        >
-          Cerrar sesión
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Link
+            to="/crm/dashboard"
+            style={{
+              padding: '8px 16px',
+              borderRadius: 999,
+              border: '1px solid rgba(255,255,255,.16)',
+              color: '#fff',
+              textDecoration: 'none',
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 600,
+              fontSize: 12,
+            }}
+          >
+            Ver dashboard
+          </Link>
+          <button
+            onClick={logout}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 999,
+              border: '1px solid rgba(255,255,255,.16)',
+              background: 'transparent',
+              color: '#fff',
+              cursor: 'pointer',
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 600,
+              fontSize: 12,
+            }}
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </div>
 
       {status === 'loading' && <p style={{ color: '#B4B4B4' }}>Cargando leads…</p>}

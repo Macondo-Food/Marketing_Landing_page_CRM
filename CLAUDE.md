@@ -186,6 +186,67 @@ medias**.
   después por el usuario en su propio entorno (login, tabla de leads,
   cambio de estado persistiendo).
 
+### Fase 7 — Dashboard (`/crm/dashboard`)
+- **Backend:** `GET /dashboard` (protegido con `requireAuth`) en
+  `backend/src/controllers/dashboard.controller.js` +
+  `routes/dashboard.routes.js`. Agrupa `respuestas_quiz` por
+  `pregunta`/`respuesta`; el `%` de cada respuesta se calcula sobre el total
+  de leads que respondieron **esa pregunta específica**, no el total general
+  de leads. También devuelve un `resumen`: `totalLeads`, `calificados`,
+  `descalificados`, `agendadosOSuperior` (estado `agendado` o cualquiera de
+  los 4 del pipeline manual) con sus porcentajes.
+- **Frontend:** `frontend/src/pages/Dashboard.jsx` (nuevo, ruta
+  `/crm/dashboard`), consume `GET /dashboard`. Tiles de resumen arriba + una
+  tarjeta por pregunta con barras horizontales — **CSS plano, sin agregar
+  ninguna librería de gráficos** (se evaluó `recharts` y se descartó para no
+  sumar una dependencia nueva) — ordenadas de mayor a menor, con la
+  respuesta y el `%` como texto directo (no solo al pasar el mouse).
+  `frontend/src/App.jsx` se reestructuró (rutas anidadas) para que `/crm` y
+  `/crm/dashboard` compartan el mismo `AuthProvider` — si no, cambiar de
+  página habría forzado un login nuevo, porque el token vive solo en
+  memoria. `frontend/src/pages/CRM.jsx` solo recibió el link "Ver
+  dashboard" (única modificación a ese archivo).
+- Verificado con una instancia aislada (backend: `401`/`200`, cálculos
+  correctos) y con el flujo visual completo en navegador (login → tabla de
+  leads → dashboard → tarjetas y barras → volver a leads).
+- **Nota de datos, no de código:** se encontraron 2 respuestas con texto
+  corrupto en un lead viejo (`lead_id=1`, anterior a esta conversación).
+  Diagnóstico confirmado: **no fue un bug de collation/charset** (tabla,
+  columna y conexión activa ya estaban consistentemente en `utf8mb4` — se
+  verificó con `information_schema` y `SHOW VARIABLES`); el texto ya llegaba
+  roto antes de tocar MySQL. Un caso (`"$3,000 - $5,000 USD/mes"` guardado
+  como `",000 USD - ,000 USD / mes"`) fue interpolación de Bash (`$3`/`$5`
+  como parámetros posicionales dentro de comillas dobles) durante una
+  prueba manual vieja por terminal. El otro (`"Ingenier�a"`, con el
+  carácter de reemplazo Unicode U+FFFD) confirmó que el texto ya venía
+  corrupto antes del `INSERT`. Ese lead (`id=1`) se borró de la base
+  (`DELETE` en `leads`, con cascada automática en `respuestas_quiz` por el
+  FK `ON DELETE CASCADE`) — los leads reales (2 y 3) están limpios.
+
+### Fase 8 — Hardening de seguridad (backend)
+- `helmet()` agregado en `app.js` — headers de seguridad por defecto de
+  Express, sin personalizar todavía.
+- CORS ya no está abierto a cualquier origen: `cors({ origin:
+  allowedOrigins })`, leyendo `ALLOWED_ORIGINS` (separado por comas) con
+  fallback a `http://localhost:5173` si la variable no está seteada.
+- Rate limiting con `express-rate-limit`
+  (`backend/src/middleware/rateLimit.js`): `POST /auth/login` máximo 5
+  intentos / 15 min por IP (cuenta **todos** los intentos, no solo los
+  fallidos — si pruebas el login varias veces seguidas y fallas, te vas a
+  quedar bloqueado incluso con la clave correcta hasta que pase la
+  ventana); `POST /leads` máximo 20 / 15 min por IP.
+- Se revisaron todos los controllers (`leads`, `calendar`, `dashboard`,
+  `auth`) + `middleware/auth.js`: ya todos devolvían mensajes genéricos al
+  cliente y loguean el detalle real solo con `console.error` — no hizo
+  falta cambiar nada ahí. La única excepción intencional es
+  `qualification.service.js`, cuyos mensajes de validación del quiz sí se
+  reenvían tal cual al cliente porque están escritos a propósito para
+  mostrarse al usuario (no son errores internos).
+- Verificado con una instancia aislada: headers de `helmet` presentes,
+  CORS permite `localhost:5173` y bloquea un origen no listado, rate limit
+  de login bloquea con `429` en el intento 6, `POST /leads` sigue
+  funcionando normal.
+
 ---
 
 ## 2. Verificaciones recientes y lecciones aprendidas
@@ -232,16 +293,13 @@ vacíos (0 bytes) — nadie ha pegado contenido ahí todavía.
 
 ## 3. Próximas fases (en orden)
 
-1. **Dashboard** con % de respuestas por pregunta, agregando la tabla
-   `respuestas_quiz` (sección 7 del plan). No hay ningún endpoint de
-   dashboard construido todavía — es el siguiente paso claro, no depende de
-   nada externo.
-2. **Integración real de Vturb** en `VturbPlayer.jsx` — **bloqueada,
+1. **Integración real de Vturb** en `VturbPlayer.jsx` — **bloqueada,
    pendiente de que el PM entregue el código de embed** en
    `reference/vturb-embed.txt` (hoy vacío, 0 bytes). No hay nada que
    construir de este lado hasta que llegue ese contenido.
-3. **Deploy** de `frontend/` y `backend/` a producción, por separado — sin
-   definir ni probar todavía.
+2. **Deploy** de `frontend/` y `backend/` a producción, por separado — sin
+   definir ni probar todavía. Con el hardening de la Fase 8 (helmet, rate
+   limiting, CORS restringido) ya es un mejor punto de partida para esto.
 
 ---
 
@@ -254,7 +312,7 @@ vacíos (0 bytes) — nadie ha pegado contenido ahí todavía.
 | `DB_PORT` | `3306` | |
 | `DB_USER` | `root` | |
 | `DB_PASSWORD` | vacío | MySQL local del usuario |
-| `DB_NAME` | `vsl_macondo` | ver pendiente de verificación arriba |
+| `DB_NAME` | `vsl_macondo` | base real del proyecto, confirmada al día en sección 2 |
 | `PORT` | `3099` | puerto del backend Express |
 | `GOOGLE_CLIENT_ID` | configurada | credencial OAuth 2.0 tipo "Desktop app" |
 | `GOOGLE_CLIENT_SECRET` | configurada | |
@@ -263,6 +321,7 @@ vacíos (0 bytes) — nadie ha pegado contenido ahí todavía.
 | `ADMIN_USER` | configurada | usuario único para entrar a `/crm` (Fase 6) |
 | `ADMIN_PASSWORD` | configurada | contraseña de ese mismo usuario |
 | `JWT_SECRET` | configurada | firma los JWT de sesión del CRM (expiran a las 8h) |
+| `ALLOWED_ORIGINS` | no configurada (opcional) | orígenes permitidos por CORS, separados por coma; si se omite cae a `http://localhost:5173` (Fase 8) |
 
 Frontend usa `VITE_API_URL` (opcional, `frontend/.env` / plantilla en
 `frontend/.env.example`) para apuntar al backend; si no está definida, cae a
@@ -290,6 +349,14 @@ Frontend usa `VITE_API_URL` (opcional, `frontend/.env` / plantilla en
   intencional para mantenerlo simple. El token JWT se guarda solo en
   memoria (React Context), no en `localStorage`: si se recarga la página,
   hay que iniciar sesión de nuevo.
+
+### Configuración de seguridad hardcodeada (Fase 8)
+- Rate limits en `backend/src/middleware/rateLimit.js`: login 5 intentos /
+  15 min por IP, `POST /leads` 20 / 15 min por IP — si hace falta ajustar
+  los números, se edita ahí.
+- CORS: orígenes permitidos vienen de `ALLOWED_ORIGINS` (`app.js`), coma-
+  separado, default `http://localhost:5173` si no está seteada.
+- `helmet()` con configuración por defecto, sin personalizar todavía.
 
 ### Puertos usados durante desarrollo (no fijos, solo referencia)
 - Backend: `PORT=3099` en `.env` real del usuario. Durante las pruebas de
