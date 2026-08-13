@@ -59,7 +59,7 @@ medias**.
 - El payload final se arma como
   `{ nombre, email, telefono, utms, calificado, respuestas: [{pregunta, respuesta, descalifica}, ...] }`
   y **solo se imprime por `console.log`** — no hay ningún `fetch`/`POST`
-  real todavía. Ver TODO exacto abajo (sección 4).
+  real todavía (esto se resolvió en la Fase 5, ver sección 1).
 
 ### Fase 3 — Backend + MySQL
 - Scaffold Node creado desde cero en `backend/` (no existía `package.json`):
@@ -303,7 +303,32 @@ vacíos (0 bytes) — nadie ha pegado contenido ahí todavía.
 
 ---
 
-## 4. Detalles técnicos para recordar
+## 4. Próximas fases solicitadas (sin implementar, para retomar)
+
+Pedidas por el usuario el 2026-08-12 para retomar en una sesión futura —
+documentadas tal cual se pidieron, sin diseñar la implementación ni el
+alcance exacto todavía. No confundir con la sección 3 (esas sí están listas
+para construirse ya; estas necesitan más definición primero).
+
+1. **Generador de URLs con UTMs preestablecidos** — herramienta dentro del
+   CRM (`/crm`) para armar la URL de la landing con
+   `utm_source`/`utm_medium`/`utm_campaign`/`utm_content` ya seleccionados
+   desde un formulario, en vez de escribirlos a mano en Meta/LinkedIn Ads
+   Manager.
+2. **Vista de detalle de lead** — al hacer clic en un lead desde la tabla
+   del CRM, ver más información y poder ir agregando datos adicionales
+   (notas de seguimiento, historial de contacto, etc.). **Alcance exacto
+   pendiente de definir.**
+3. **Sistema de usuarios completo** — hoy el login es un solo admin
+   hardcodeado en `ADMIN_USER`/`ADMIN_PASSWORD` (`.env`, Fase 6).
+   Evolucionar a una tabla de usuarios en MySQL con roles (`admin`,
+   `vendedor`), donde el admin pueda crear/gestionar cuentas de vendedores.
+   **Pendiente definir** si cada vendedor debe ver solo sus leads asignados
+   o todos.
+
+---
+
+## 5. Detalles técnicos para recordar
 
 ### Variables de entorno (`backend/.env`, plantilla en `.env.example`)
 | Variable | Estado actual | Notas |
