@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import leadsRouter from './routes/leads.routes.js';
 import calendarRouter from './routes/calendar.routes.js';
+import authRouter from './routes/auth.routes.js';
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.get('/health', (req, res) => {
 
 app.use('/leads', leadsRouter);
 app.use('/calendar', calendarRouter);
+app.use('/auth', authRouter);
 
 const PORT = process.env.PORT || 3001;
 

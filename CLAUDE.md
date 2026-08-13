@@ -1,6 +1,6 @@
 # Bitácora de estado — Proyecto VSL Macondo
 
-Última actualización: 2026-08-10.
+Última actualización: 2026-08-12.
 
 Este archivo es un resumen del estado real del código para retomar el trabajo
 sin tener que releer toda la conversación. La fuente de verdad del **diseño
@@ -115,72 +115,133 @@ medias**.
      email del lead, guarda `calendar_event_id` y pone `estado = 'agendado'`.
 - `backend/scripts/get-refresh-token.mjs`: script de un solo uso para
   obtener el `GOOGLE_REFRESH_TOKEN` (flujo OAuth2 loopback local). Se corre
-  con `pnpm get-google-token` desde `backend/`. Detalle completo en la
-  sección 2.
+  con `pnpm get-google-token` desde `backend/`. Ya se usó exitosamente; el
+  `GOOGLE_REFRESH_TOKEN` vigente en `backend/.env` salió de ahí.
+- **Verificado de punta a punta el 2026-08-12 con credenciales y calendario
+  reales** (cuenta `social@macondosoftwares.com`, calendario secundario
+  "Landing-vsl"): `GET /calendar/disponibilidad` lee correctamente los
+  eventos reales del calendario; `POST /calendar/agendar` creó un evento
+  real con Meet, la invitación llegó por correo, y `leads` quedó consistente
+  (`estado='agendado'`, `calendar_event_id` guardado). También se confirmó
+  que reintentar agendar el mismo lead responde `400` sin tocar Google
+  (anti-duplicado). En el camino se encontró y corrigió un bug en
+  `GOOGLE_CALENDAR_ID` — ver sección 2.
+
+### Fase 5 — Frontend conectado al backend real
+- `frontend/src/services/api.js` (nuevo): cliente HTTP (`createLead`,
+  `getDisponibilidad`, `agendarReunion`). Usa `VITE_API_URL` con fallback a
+  `http://localhost:3099`; normaliza errores de red y de respuesta HTTP en
+  mensajes legibles para la UI.
+- `QuizPopup.jsx`: el paso de resultado ahora llama `POST /leads` de verdad
+  (antes solo hacía `console.log`, TODO ya resuelto). El payload se envía
+  siempre (califique o no según el cálculo del frontend); la pantalla que se
+  muestra después depende del `calificado` que devuelve la **respuesta del
+  backend**, no del cálculo del frontend. Estados de "Enviando…" / error con
+  botón "Reintentar". Guard con `useRef` para que el envío no se dispare dos
+  veces por `React.StrictMode` en desarrollo.
+- `frontend/src/components/ScheduleSlots.jsx` (nuevo, reemplaza el
+  placeholder de texto): carga `GET /calendar/disponibilidad` al montarse,
+  agrupa los horarios por día ("Lunes 17 de agosto") en hora Bogotá, permite
+  elegir y confirmar con `POST /calendar/agendar`. Si el backend responde
+  `409` (alguien más tomó ese horario), recarga la disponibilidad
+  automáticamente y avisa. Pantalla final con el link de Google Meet.
+- Verificado por el usuario probando el flujo completo en el navegador
+  (contacto → quiz → selector de horario → evento real agendado).
+
+### Fase 6 — CRM básico con login (`/crm`)
+- **Backend:**
+  - `POST /auth/login` (`controllers/auth.controller.js` +
+    `routes/auth.routes.js`): compara `usuario`/`password` contra
+    `ADMIN_USER`/`ADMIN_PASSWORD` con `crypto.timingSafeEqual` (comparación
+    de tiempo constante), firma un JWT (`jsonwebtoken`) con expiración de 8h.
+    Un solo usuario administrador — no es un sistema de usuarios completo.
+  - `backend/src/middleware/auth.js` (`requireAuth`): valida
+    `Authorization: Bearer <token>`; `401` si falta o es inválido/expirado.
+  - `PATCH /leads/:id/estado` (nuevo, protegido): solo permite mover el
+    lead a `con_requisitos | sin_requisitos_reunion | reunion_cierre |
+    venta_servicio` (`400` si se intenta poner manualmente `descalificado`,
+    `calificado` o `agendado` — esos los pone el sistema); `404` si el lead
+    no existe.
+  - `GET /leads` ahora también requiere `requireAuth` (antes estaba
+    abierto). `POST /leads` sigue público, lo sigue usando el quiz.
+- **Frontend:**
+  - `frontend/src/context/AuthContext.jsx` (nuevo): token guardado en
+    memoria (React Context), **no** en `localStorage`, a propósito.
+  - `frontend/src/pages/Login.jsx` y `frontend/src/pages/CRM.jsx` (nuevo,
+    ruta `/crm` agregada con `react-router-dom`): tabla de leads (nombre,
+    email, teléfono, origen/`utm_source`, estado con badge de color, fecha)
+    con un selector por fila para cambiar `estado` hacia los 4 valores del
+    pipeline manual. `descalificado` se muestra como badge fijo, sin
+    selector (no editable desde el CRM).
+  - `frontend/src/App.jsx`: rutas `/` (landing, sin cambios) y `/crm`
+    (envuelta en `AuthProvider`); si no hay token en memoria, `/crm` muestra
+    el formulario de login directamente (sin ruta `/crm/login` separada).
+- **Verificado de punta a punta el 2026-08-12:** login con credenciales
+  correctas/incorrectas, `GET /leads` sin token (`401`) y con token (`200`),
+  `PATCH /leads/:id/estado` a un valor no permitido (`400`) y a uno válido
+  (`200`, persistido en la base de datos), lead inexistente (`404`).
+  Probado primero con una instancia temporal aislada (puerto `3098`,
+  credenciales de prueba) para no tocar el servidor ni los datos reales del
+  usuario, revirtiendo cualquier cambio antes de apagarla; confirmado
+  después por el usuario en su propio entorno (login, tabla de leads,
+  cambio de estado persistiendo).
 
 ---
 
-## 2. Pendiente de verificación / a medias
+## 2. Verificaciones recientes y lecciones aprendidas
 
-- **`GOOGLE_REFRESH_TOKEN` aún no generado.** `backend/.env` todavía no
-  tiene ninguna variable `GOOGLE_*` (confirmado al revisar el archivo hoy).
-  Pasos manuales pendientes en Google Cloud Console:
-  1. Crear/seleccionar un proyecto y habilitar la **Google Calendar API**.
-  2. Configurar la pantalla de consentimiento OAuth (modo "Testing" alcanza;
-     agregar la cuenta de Google que recibirá las reuniones como test user).
-  3. Crear credenciales **OAuth 2.0 Client ID → tipo "Desktop app"** (permite
-     redirects a `localhost:<cualquier puerto>` sin whitelistear la URI
-     exacta).
-  4. Poner `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `backend/.env`.
-  5. Correr `cd backend && pnpm get-google-token`, abrir la URL impresa,
-     autorizar, copiar el `GOOGLE_REFRESH_TOKEN` que imprime la terminal a
-     `backend/.env`.
-- **Por lo anterior, `GET /calendar/disponibilidad` y `POST
-  /calendar/agendar` nunca se probaron con credenciales reales de Google.**
-  Solo se verificó que:
-  - la lógica de cálculo de slots (fechas/horario) es correcta, de forma
-    aislada;
-  - ambos endpoints fallan de forma controlada (400/401/500), sin tumbar el
-    servidor, cuando las credenciales de Google faltan o son inválidas;
-  - la validación de estado del lead (descalificado / ya agendado) sí se
-    probó de punta a punta contra una base de datos descartable.
-- **No confirmado si `schema.sql` ya corrió contra `vsl_macondo`** (la base
-  real, según `backend/.env`). Se le pidió al usuario correrlo manualmente
-  al cierre de la Fase 3, pero no hubo confirmación explícita en la
-  conversación. **Importante:** el `schema.sql` actual incluye el ajuste del
-  `ENUM estado` con `'calificado'` (agregado después del pedido inicial de
-  correrlo). Si `vsl_macondo` ya tiene la tabla `leads` creada con una
-  versión **anterior** del ENUM (sin `'calificado'`, con `estado` nullable),
-  hay que correr un `ALTER TABLE` para actualizarla — insertar un lead
-  calificado fallaría con esa tabla desactualizada. Verificar esto antes de
-  seguir.
-- `reference/vturb-embed.txt` y `reference/google-calendar-setup.md` siguen
-  vacíos (0 bytes) — nadie ha pegado contenido ahí todavía.
+- **Base de datos `vsl_macondo` confirmada al día (2026-08-12).** Se
+  consultó directamente la base real (no una de prueba): las tablas `leads`
+  y `respuestas_quiz` existen, y la columna `estado` de `leads` ya es el
+  ENUM completo y `NOT NULL` incluyendo `'calificado'`. `schema.sql` ya está
+  aplicado, no hace falta ningún `ALTER TABLE`.
+- **Fase 4 (Google Calendar) verificada de punta a punta el 2026-08-12**
+  con credenciales y calendario reales. Ver el resumen en la sección 1
+  (Fase 4).
+
+### Bug encontrado y corregido: `GOOGLE_CALENDAR_ID` pegado en base64
+
+- **Qué pasó:** al configurar `backend/.env`, el valor de
+  `GOOGLE_CALENDAR_ID` se pegó codificado en base64 en vez de texto plano
+  (terminaba en algo como `...bmRhci5nb29nbGUuY29t` en vez de
+  `...@group.calendar.google.com`).
+- **Cómo se manifestó (nada obvio):** `GET /calendar/disponibilidad`
+  **no falló** — `freebusy.query` de Google, cuando el `calendarId` no
+  existe o es inaccesible, no devuelve error: simplemente responde sin
+  datos de "busy" para ese id (en `googleCalendar.service.js`,
+  `response.data.calendars?.[calendarId]?.busy` queda `undefined` y el
+  código lo trata como `[]`, es decir "todo libre"). El endpoint devolvía
+  slots "disponibles" con total normalidad, pero era un falso positivo:
+  nunca estaba leyendo el calendario real. El bug solo se hizo visible al
+  probar `POST /calendar/agendar`, porque `events.insert` sí valida el
+  `calendarId` y respondió `404 Not Found`.
+- **Corrección:** decodificar el valor real de base64 y pegarlo en texto
+  plano en `GOOGLE_CALENDAR_ID`. El valor correcto en este proyecto es un
+  calendario **secundario** llamado "Landing-vsl" (no el calendario
+  principal de la cuenta autorizada, `social@macondosoftwares.com`).
+- **Lección para el futuro:** si `GET /calendar/disponibilidad` devuelve
+  slots que no cuadran con lo que realmente hay en el calendario, sospechar
+  primero de `GOOGLE_CALENDAR_ID` (typo, base64, o calendario equivocado)
+  antes que de la lógica de horarios — `freebusy.query` falla en silencio
+  para un `calendarId` inválido, no lanza excepción.
+
+`reference/vturb-embed.txt` y `reference/google-calendar-setup.md` siguen
+vacíos (0 bytes) — nadie ha pegado contenido ahí todavía.
 
 ---
 
 ## 3. Próximas fases (en orden)
 
-1. **Conectar `QuizPopup.jsx` con `POST /leads` real** — hoy solo hace
-   `console.log` del payload (ver TODO exacto en sección 4). Es el paso
-   lógico antes de tocar `ScheduleSlots`, porque ese componente va a
-   necesitar el `leadId` que devuelve `POST /leads`.
-2. **Construir `ScheduleSlots.jsx` real** y conectarlo a `GET
-   /calendar/disponibilidad` (listar horarios) y `POST /calendar/agendar`
-   (confirmar), reemplazando el placeholder de texto que hoy muestra
-   `QuizPopup.jsx` en el paso de resultado calificado.
-3. **CRM básico**: vista para listar leads (ya existe `GET /leads` en el
-   backend) y cambiar `estado` manualmente entre `con_requisitos`,
-   `sin_requisitos_reunion`, `reunion_cierre`, `venta_servicio`. Falta el
-   endpoint de actualización de estado en el backend (no existe todavía,
-   solo lectura) y toda la UI.
-4. **Dashboard** con % de respuestas por pregunta, agregando la tabla
+1. **Dashboard** con % de respuestas por pregunta, agregando la tabla
    `respuestas_quiz` (sección 7 del plan). No hay ningún endpoint de
-   dashboard construido todavía.
-5. **Integración real de Vturb** en `VturbPlayer.jsx`, en cuanto llegue el
-   código de embed a `reference/vturb-embed.txt` (hoy vacío).
-6. **Deploy** de `frontend/` y `backend/` por separado — sin definir ni
-   probar todavía.
+   dashboard construido todavía — es el siguiente paso claro, no depende de
+   nada externo.
+2. **Integración real de Vturb** en `VturbPlayer.jsx` — **bloqueada,
+   pendiente de que el PM entregue el código de embed** en
+   `reference/vturb-embed.txt` (hoy vacío, 0 bytes). No hay nada que
+   construir de este lado hasta que llegue ese contenido.
+3. **Deploy** de `frontend/` y `backend/` a producción, por separado — sin
+   definir ni probar todavía.
 
 ---
 
@@ -195,22 +256,17 @@ medias**.
 | `DB_PASSWORD` | vacío | MySQL local del usuario |
 | `DB_NAME` | `vsl_macondo` | ver pendiente de verificación arriba |
 | `PORT` | `3099` | puerto del backend Express |
-| `GOOGLE_CLIENT_ID` | **no configurada** | |
-| `GOOGLE_CLIENT_SECRET` | **no configurada** | |
-| `GOOGLE_REFRESH_TOKEN` | **no configurada** | ver sección 2 |
-| `GOOGLE_CALENDAR_ID` | no configurada (default `'primary'` si se omite) | |
+| `GOOGLE_CLIENT_ID` | configurada | credencial OAuth 2.0 tipo "Desktop app" |
+| `GOOGLE_CLIENT_SECRET` | configurada | |
+| `GOOGLE_REFRESH_TOKEN` | configurada | obtenida con `pnpm get-google-token` |
+| `GOOGLE_CALENDAR_ID` | configurada | calendario secundario "Landing-vsl" de `social@macondosoftwares.com` (no `'primary'`) — ver el bug del valor en base64 en la sección 2 |
+| `ADMIN_USER` | configurada | usuario único para entrar a `/crm` (Fase 6) |
+| `ADMIN_PASSWORD` | configurada | contraseña de ese mismo usuario |
+| `JWT_SECRET` | configurada | firma los JWT de sesión del CRM (expiran a las 8h) |
 
-Frontend no usa variables de entorno todavía (no hay `services/api.js` ni
-ninguna llamada real al backend — ver TODO abajo).
-
-### TODOs explícitos en el código
-- `frontend/src/components/QuizPopup.jsx:153` —
-  `// TODO: enviar a POST /leads cuando exista el backend.` El payload ya
-  tiene la forma correcta (`respuestas` como arreglo
-  `[{ pregunta, respuesta }, ...]`, confirmado compatible con lo que espera
-  el controller). Falta reemplazar el `console.log` por un `fetch` real y
-  manejar la respuesta `{ calificado, leadId }` (guardar `leadId` en estado
-  para pasarlo a `ScheduleSlots` cuando exista).
+Frontend usa `VITE_API_URL` (opcional, `frontend/.env` / plantilla en
+`frontend/.env.example`) para apuntar al backend; si no está definida, cae a
+`http://localhost:3099` (ver fallback en `frontend/src/services/api.js`).
 
 ### Reglas de negocio hardcodeadas a tener en cuenta
 - Horario de atención para disponibilidad: **lunes a viernes, 9:00-17:00,
@@ -221,17 +277,25 @@ ninguna llamada real al backend — ver TODO abajo).
   ahí.
 - `estado` de `leads` es un ENUM con 7 valores: `descalificado`,
   `calificado`, `agendado`, `con_requisitos`, `sin_requisitos_reunion`,
-  `reunion_cierre`, `venta_servicio` — sin la Fase 5 (CRM), los últimos 4 no
-  los pone nadie todavía (no hay UI ni endpoint para eso).
+  `reunion_cierre`, `venta_servicio`. Los primeros 3 los pone el sistema
+  (quiz, agendamiento); los últimos 4 se ponen manualmente desde el CRM
+  (`/crm`, Fase 6) vía `PATCH /leads/:id/estado` — ese endpoint rechaza con
+  `400` cualquier intento de poner los primeros 3 manualmente.
 - `POST /leads` y `POST /calendar/agendar` recalculan/revalidan en servidor
   en vez de confiar en lo que manda el cliente (calificación del quiz,
   disponibilidad del slot) — decisión intencional de seguridad, no tocar sin
   razón.
+- El CRM (`/crm`) tiene un solo usuario administrador (`ADMIN_USER` /
+  `ADMIN_PASSWORD` en `.env`), no un sistema de usuarios — decisión
+  intencional para mantenerlo simple. El token JWT se guarda solo en
+  memoria (React Context), no en `localStorage`: si se recarga la página,
+  hay que iniciar sesión de nuevo.
 
 ### Puertos usados durante desarrollo (no fijos, solo referencia)
 - Backend: `PORT=3099` en `.env` real del usuario. Durante las pruebas de
-  Claude se usaron puertos alternos temporales (3097, 3098, etc.) para no
-  chocar con el proceso que el usuario tenía corriendo — no quedó nada
+  Claude se usaron puertos alternos temporales (3097, 3098, etc., este
+  último para probar el login de la Fase 6 con credenciales de prueba) para
+  no chocar con el proceso que el usuario tenía corriendo — no quedó nada
   corriendo en segundo plano al cierre de cada fase.
 - Frontend: sin puerto fijo, Vite por defecto (`5173`, o el siguiente libre
   si está ocupado).

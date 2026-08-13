@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getStoredUtms } from '../utils/utm.js';
+import { createLead } from '../services/api.js';
+import ScheduleSlots from './ScheduleSlots.jsx';
 
 // Preguntas y lógica de calificación según la sección 3 del plan.
 // `id` coincide con el campo `pregunta` de la tabla respuestas_quiz.
@@ -121,6 +123,11 @@ export default function QuizPopup({ onClose }) {
   const [contactErrors, setContactErrors] = useState({});
   const [answers, setAnswers] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [submitStatus, setSubmitStatus] = useState('idle'); // idle | loading | error | done
+  const [submitError, setSubmitError] = useState('');
+  const [leadId, setLeadId] = useState(null);
+  const [backendCalificado, setBackendCalificado] = useState(null);
+  const hasSubmittedRef = useRef(false);
 
   const isContactStep = step === CONTACT_STEP;
   const isResultStep = step === RESULT_STEP;
@@ -139,9 +146,11 @@ export default function QuizPopup({ onClose }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  useEffect(() => {
-    if (!isResultStep) return;
-
+  // Se envía siempre (califique o no según el cálculo del frontend): el
+  // backend recalcula la calificación real y es la fuente de verdad — el
+  // resultado que se muestra después depende de `backendCalificado`, no de
+  // `calificado`.
+  function submitLead() {
     const payload = {
       nombre: contact.nombre.trim(),
       email: contact.email.trim(),
@@ -150,11 +159,28 @@ export default function QuizPopup({ onClose }) {
       calificado,
       respuestas: answers, // [{ pregunta, respuesta, descalifica }, ...]
     };
-    // TODO: enviar a POST /leads cuando exista el backend.
-    // El lead se guarda siempre (calificado o no) junto con `respuestas`
-    // en la tabla respuestas_quiz, para el dashboard de % por pregunta.
-    console.log('[quiz] resultado listo para enviar al backend:', payload);
-  }, [isResultStep, calificado, answers, contact]);
+
+    setSubmitStatus('loading');
+    setSubmitError('');
+    return createLead(payload)
+      .then((data) => {
+        setLeadId(data.leadId);
+        setBackendCalificado(data.calificado);
+        setSubmitStatus('done');
+      })
+      .catch((err) => {
+        setSubmitError(err.message);
+        setSubmitStatus('error');
+      });
+  }
+
+  useEffect(() => {
+    if (!isResultStep || hasSubmittedRef.current) return;
+    hasSubmittedRef.current = true;
+    submitLead();
+    // Solo debe dispararse una vez, al llegar al paso de resultado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isResultStep]);
 
   function handleContactChange(field, value) {
     setContact({ ...contact, [field]: value });
@@ -395,33 +421,50 @@ export default function QuizPopup({ onClose }) {
           </>
         )}
 
-        {isResultStep && calificado && (
-          <div style={{ textAlign: 'center', padding: '12px 0' }}>
-            <p style={eyebrowStyle}>¡Calificas!</p>
-            <h3 style={{ margin: '0 0 16px', fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: 24 }}>
-              Elige un horario para tu llamada
+        {isResultStep && (submitStatus === 'idle' || submitStatus === 'loading') && (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <p style={eyebrowStyle}>Un momento</p>
+            <h3 style={{ margin: 0, fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 18 }}>
+              Enviando tu información…
             </h3>
-            <div
-              style={{
-                border: '1px dashed rgba(248,245,34,.4)',
-                borderRadius: 12,
-                padding: '28px 20px',
-                color: '#B4B4B4',
-                fontSize: 14,
-                lineHeight: 1.5,
-                marginBottom: 22,
-              }}
-            >
-              Aquí va el selector de horario (ScheduleSlots) — se conecta a la disponibilidad real
-              de Google Calendar en la Fase 3, una vez exista el backend.
-            </div>
-            <button onClick={onClose} style={primaryButtonStyle}>
-              Cerrar
-            </button>
           </div>
         )}
 
-        {isResultStep && !calificado && (
+        {isResultStep && submitStatus === 'error' && (
+          <div style={{ textAlign: 'center', padding: '12px 0' }}>
+            <h3 style={{ margin: '0 0 12px', fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: 20 }}>
+              Algo salió mal
+            </h3>
+            <p style={{ margin: '0 0 20px', color: '#FF6B6B', fontSize: 14, lineHeight: 1.5 }}>{submitError}</p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
+              <button
+                onClick={onClose}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: 999,
+                  border: '1px solid rgba(255,255,255,.16)',
+                  background: 'transparent',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontFamily: 'Montserrat, sans-serif',
+                  fontWeight: 600,
+                  fontSize: 13,
+                }}
+              >
+                Cerrar
+              </button>
+              <button onClick={submitLead} style={primaryButtonStyle}>
+                Reintentar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isResultStep && submitStatus === 'done' && backendCalificado && (
+          <ScheduleSlots leadId={leadId} contactEmail={contact.email} onClose={onClose} />
+        )}
+
+        {isResultStep && submitStatus === 'done' && !backendCalificado && (
           <div style={{ textAlign: 'center', padding: '12px 0' }}>
             <h3 style={{ margin: '0 0 12px', fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: 24 }}>
               ¡Gracias por tu interés!

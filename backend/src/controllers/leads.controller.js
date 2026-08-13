@@ -67,6 +67,38 @@ export async function createLead(req, res) {
   }
 }
 
+const ESTADOS_EDITABLES = [
+  'con_requisitos',
+  'sin_requisitos_reunion',
+  'reunion_cierre',
+  'venta_servicio',
+];
+
+export async function updateEstado(req, res) {
+  const id = Number(req.params.id);
+  const { estado } = req.body ?? {};
+
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'id inválido' });
+  }
+  if (!ESTADOS_EDITABLES.includes(estado)) {
+    return res.status(400).json({
+      error: `estado debe ser uno de: ${ESTADOS_EDITABLES.join(', ')}`,
+    });
+  }
+
+  try {
+    const [result] = await pool.execute('UPDATE leads SET estado = ? WHERE id = ?', [estado, id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Lead no encontrado' });
+    }
+    res.json({ id, estado });
+  } catch (err) {
+    console.error('[leads] error al actualizar estado:', err);
+    res.status(500).json({ error: 'Error al actualizar el estado' });
+  }
+}
+
 export async function listLeads(req, res) {
   try {
     const [rows] = await pool.execute(
