@@ -2,6 +2,7 @@ import { BrowserRouter, Outlet, Route, Routes } from 'react-router-dom';
 import LandingVSL from './pages/LandingVSL.jsx';
 import CRM from './pages/CRM.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import Usuarios from './pages/Usuarios.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 
 // /crm y /crm/dashboard comparten el mismo AuthProvider (token en memoria)
@@ -22,6 +23,7 @@ export default function App() {
         <Route element={<CrmLayout />}>
           <Route path="/crm" element={<CRM />} />
           <Route path="/crm/dashboard" element={<Dashboard />} />
+          <Route path="/crm/usuarios" element={<Usuarios />} />
         </Route>
       </Routes>
     </BrowserRouter>

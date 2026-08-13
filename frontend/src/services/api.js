@@ -48,7 +48,7 @@ export function agendarReunion(leadId, slot) {
   });
 }
 
-// (usuario, password) -> { token }
+// (usuario, password) -> { token, usuario: { id, nombre, rol } }
 export function loginRequest(usuario, password) {
   return request('/auth/login', {
     method: 'POST',
@@ -79,6 +79,45 @@ export function updateLeadEstado(token, id, estado) {
 // (token) -> { resumen: {...}, respuestas: { [pregunta]: [{ respuesta, total, porcentaje }, ...] } }
 export function getDashboard(token) {
   return request('/dashboard', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// (token) -> [{ id, nombre, email, rol, created_at }, ...]
+export function getUsuarios(token) {
+  return request('/usuarios', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// (token, { nombre, email, password, rol }) -> { id, nombre, email, rol }
+export function createUsuario(token, payload) {
+  return request('/usuarios', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+// (token, id, { nombre?, rol?, password? }) -> { id, nombre, email, rol, created_at }
+export function updateUsuario(token, id, payload) {
+  return request(`/usuarios/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+// (token, id) -> { id }
+export function deleteUsuario(token, id) {
+  return request(`/usuarios/${id}`, {
+    method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
 }

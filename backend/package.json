@@ -7,9 +7,11 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "node --watch src/app.js",
-    "get-google-token": "node scripts/get-refresh-token.mjs"
+    "get-google-token": "node scripts/get-refresh-token.mjs",
+    "seed-admin": "node scripts/seed-admin.mjs"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",

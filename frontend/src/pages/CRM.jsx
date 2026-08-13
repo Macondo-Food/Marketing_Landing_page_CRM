@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getLeads, updateLeadEstado } from '../services/api.js';
 import Login from './Login.jsx';
@@ -91,7 +91,8 @@ const selectStyle = {
 };
 
 function Dashboard() {
-  const { token, logout } = useAuth();
+  const { token, usuario, logout } = useAuth();
+  const location = useLocation();
   const [leads, setLeads] = useState([]);
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [error, setError] = useState('');
@@ -167,6 +168,9 @@ function Dashboard() {
           <h1 style={{ margin: 0, fontFamily: 'Montserrat, sans-serif', fontWeight: 700, fontSize: 22 }}>
             Leads
           </h1>
+          {usuario?.nombre && (
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#B4B4B4' }}>Hola, {usuario.nombre}</p>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <Link
@@ -184,6 +188,23 @@ function Dashboard() {
           >
             Ver dashboard
           </Link>
+          {usuario?.rol === 'admin' && (
+            <Link
+              to="/crm/usuarios"
+              style={{
+                padding: '8px 16px',
+                borderRadius: 999,
+                border: '1px solid rgba(255,255,255,.16)',
+                color: '#fff',
+                textDecoration: 'none',
+                fontFamily: 'Montserrat, sans-serif',
+                fontWeight: 600,
+                fontSize: 12,
+              }}
+            >
+              Usuarios
+            </Link>
+          )}
           <button
             onClick={logout}
             style={{
@@ -202,6 +223,21 @@ function Dashboard() {
           </button>
         </div>
       </div>
+
+      {location.state?.mensaje && (
+        <p
+          style={{
+            margin: '0 0 20px',
+            padding: '10px 14px',
+            borderRadius: 8,
+            background: 'rgba(255,107,107,.12)',
+            color: '#FF6B6B',
+            fontSize: 13,
+          }}
+        >
+          {location.state.mensaje}
+        </p>
+      )}
 
       {status === 'loading' && <p style={{ color: '#B4B4B4' }}>Cargando leads…</p>}
 

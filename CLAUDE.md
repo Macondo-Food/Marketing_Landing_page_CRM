@@ -1,6 +1,6 @@
 # Bitácora de estado — Proyecto VSL Macondo
 
-Última actualización: 2026-08-12.
+Última actualización: 2026-08-13.
 
 Este archivo es un resumen del estado real del código para retomar el trabajo
 sin tener que releer toda la conversación. La fuente de verdad del **diseño
@@ -247,6 +247,85 @@ medias**.
   de login bloquea con `429` en el intento 6, `POST /leads` sigue
   funcionando normal.
 
+### Fase 9 — Sistema de usuarios con roles (`/crm/usuarios`)
+- **Alcance definido por el usuario:** todos los usuarios (`admin` y
+  `vendedor`) ven y editan todos los leads igual que antes, sin ninguna
+  restricción por rol. La única diferencia entre roles es que **solo el
+  admin puede crear/gestionar cuentas de usuario** — los vendedores no
+  pueden crear otros usuarios. No hay leads asignados por vendedor; eso
+  quedó explícitamente fuera de alcance (ver sección 4, ítem 3, ya
+  marcado como resuelto).
+- **Backend:**
+  - Tabla `usuarios` agregada a `backend/src/db/schema.sql` (`CREATE TABLE
+    IF NOT EXISTS`, no reemplazó nada existente): `id`, `nombre`, `email`
+    (`UNIQUE`), `password_hash`, `rol` ENUM(`admin`, `vendedor`),
+    `created_at`.
+  - `bcrypt` agregado como dependencia nueva (`backend/package.json`).
+    Necesitó `pnpm approve-builds bcrypt` porque compila un módulo nativo
+    en su script `install` y pnpm 10+ bloquea esos scripts por defecto
+    (protección de supply-chain). Quedó registrado en
+    `backend/pnpm-workspace.yaml` (archivo nuevo, solo dos líneas:
+    `allowBuilds: { bcrypt: true }`) — sin él, un `pnpm install` limpio en
+    otra máquina volvería a bloquear la compilación de `bcrypt` y el login
+    fallaría.
+  - `backend/scripts/seed-admin.mjs` (nuevo, se corre una sola vez con
+    `pnpm seed-admin` desde `backend/`): crea el primer usuario admin en
+    la tabla `usuarios` a partir de `ADMIN_USER` (como email) y
+    `ADMIN_PASSWORD` (`.env`), con `nombre = "Administrador"`. Seguro de
+    re-correr: si ya existe un usuario con ese email, no hace nada.
+  - `POST /auth/login` (`controllers/auth.controller.js`) reescrito por
+    completo: ya no compara contra variables de entorno — busca el
+    usuario por `email` en la tabla `usuarios` y compara el password con
+    `bcrypt.compare`. Usa un hash "dummy" cuando el email no existe (se
+    compara igual contra él) para que el tiempo de respuesta no delate
+    qué emails están registrados. Firma el JWT con `{ sub, userId,
+    nombre, rol }`; la respuesta ahora es `{ token, usuario: { id,
+    nombre, rol } }`, no solo el token.
+  - `backend/src/middleware/requireAdmin.js` (nuevo): reutiliza
+    `requireAuth` y además exige `req.user.rol === 'admin'` (`403` si no).
+  - CRUD `/usuarios` protegido con `requireAdmin`
+    (`controllers/usuarios.controller.js` + `routes/usuarios.routes.js`,
+    montado en `app.js`): `GET /usuarios` (nunca expone `password_hash`),
+    `POST /usuarios` (hashea el password con bcrypt, `409` si el email ya
+    existe), `PATCH /usuarios/:id` (nombre/rol/reset de password),
+    `DELETE /usuarios/:id`. `PATCH` (al quitar el rol admin) y `DELETE`
+    responden `400` si la operación dejaría la tabla sin ningún admin.
+  - `GET`/`PATCH` de `leads` y `GET /dashboard` **sin cambios** — siguen
+    protegidos con `requireAuth` genérico, no con `requireAdmin`:
+    cualquier rol autenticado accede igual, según el alcance definido.
+- **Frontend:**
+  - `frontend/src/context/AuthContext.jsx`: ahora guarda también
+    `usuario: { id, nombre, rol }` devuelto por el login, no solo el
+    `token` (sigue en memoria, no en `localStorage`).
+  - `frontend/src/pages/Usuarios.jsx` (nuevo, ruta `/crm/usuarios`):
+    listado de usuarios con su rol, formulario de creación (nombre,
+    email, password, rol), selector para cambiar rol y botón para
+    eliminar. Protegida por rol: sin token muestra `Login`; si el usuario
+    logueado es `vendedor`, redirige a `/crm` con un mensaje ("No tienes
+    acceso a la sección de usuarios.") en vez de mostrar la página.
+  - `frontend/src/pages/CRM.jsx`: agrega el saludo "Hola, [nombre]" y el
+    link "Usuarios" en la navegación, visible **solo si**
+    `usuario.rol === 'admin'`; muestra el mensaje de acceso denegado que
+    llega por `location.state` al redirigir desde `/crm/usuarios`. No se
+    tocó la lógica de leads de esta página.
+  - `frontend/src/services/api.js`: `getUsuarios`, `createUsuario`,
+    `updateUsuario`, `deleteUsuario` agregados (todas con el token en el
+    header `Authorization`).
+  - `frontend/src/App.jsx`: ruta `/crm/usuarios` agregada dentro del
+    mismo `CrmLayout`/`AuthProvider` que `/crm` y `/crm/dashboard`.
+- **Verificado el 2026-08-13 con una base de datos descartable** (creada,
+  con el schema aplicado, y borrada al final del proceso — nunca se tocó
+  `vsl_macondo` directamente): login con email/password correctos e
+  incorrectos, login con email inexistente, `GET /usuarios` sin token
+  (`401`), con token vendedor (`403`) y con token admin (`200`, sin
+  `password_hash` en la respuesta), `POST /usuarios` con email duplicado
+  (`409`), protección de "único admin" tanto en `DELETE` como al
+  degradar el rol vía `PATCH`, que un vendedor sí puede seguir usando
+  `GET /leads` y `GET /dashboard` sin restricción, y que un JWT emitido
+  *antes* de una promoción de rol sigue actuando con el rol viejo hasta
+  volver a iniciar sesión (comportamiento esperado de un JWT sin estado,
+  no un bug).
+
 ---
 
 ## 2. Verificaciones recientes y lecciones aprendidas
@@ -319,12 +398,12 @@ para construirse ya; estas necesitan más definición primero).
    del CRM, ver más información y poder ir agregando datos adicionales
    (notas de seguimiento, historial de contacto, etc.). **Alcance exacto
    pendiente de definir.**
-3. **Sistema de usuarios completo** — hoy el login es un solo admin
-   hardcodeado en `ADMIN_USER`/`ADMIN_PASSWORD` (`.env`, Fase 6).
-   Evolucionar a una tabla de usuarios en MySQL con roles (`admin`,
-   `vendedor`), donde el admin pueda crear/gestionar cuentas de vendedores.
-   **Pendiente definir** si cada vendedor debe ver solo sus leads asignados
-   o todos.
+3. **Sistema de usuarios completo — completada en la Fase 9** (ver
+   sección 1). Se implementó la tabla `usuarios` en MySQL con roles
+   (`admin`, `vendedor`); el admin puede crear/gestionar cuentas desde
+   `/crm/usuarios`. Se resolvió la pregunta que había quedado pendiente:
+   **todos los roles ven y editan todos los leads sin restricción** — no
+   hay leads asignados por vendedor.
 
 ---
 
@@ -343,8 +422,8 @@ para construirse ya; estas necesitan más definición primero).
 | `GOOGLE_CLIENT_SECRET` | configurada | |
 | `GOOGLE_REFRESH_TOKEN` | configurada | obtenida con `pnpm get-google-token` |
 | `GOOGLE_CALENDAR_ID` | configurada | calendario secundario "Landing-vsl" de `social@macondosoftwares.com` (no `'primary'`) — ver el bug del valor en base64 en la sección 2 |
-| `ADMIN_USER` | configurada | usuario único para entrar a `/crm` (Fase 6) |
-| `ADMIN_PASSWORD` | configurada | contraseña de ese mismo usuario |
+| `ADMIN_USER` | configurada | ya NO se lee en cada login (Fase 9) — solo la usa `backend/scripts/seed-admin.mjs`, una vez, como email del primer admin sembrado en la tabla `usuarios` |
+| `ADMIN_PASSWORD` | configurada | ídem: solo la usa `seed-admin.mjs`, como password de ese primer admin |
 | `JWT_SECRET` | configurada | firma los JWT de sesión del CRM (expiran a las 8h) |
 | `ALLOWED_ORIGINS` | no configurada (opcional) | orígenes permitidos por CORS, separados por coma; si se omite cae a `http://localhost:5173` (Fase 8) |
 
@@ -369,11 +448,14 @@ Frontend usa `VITE_API_URL` (opcional, `frontend/.env` / plantilla en
   en vez de confiar en lo que manda el cliente (calificación del quiz,
   disponibilidad del slot) — decisión intencional de seguridad, no tocar sin
   razón.
-- El CRM (`/crm`) tiene un solo usuario administrador (`ADMIN_USER` /
-  `ADMIN_PASSWORD` en `.env`), no un sistema de usuarios — decisión
-  intencional para mantenerlo simple. El token JWT se guarda solo en
-  memoria (React Context), no en `localStorage`: si se recarga la página,
-  hay que iniciar sesión de nuevo.
+- El CRM (`/crm`) tiene usuarios reales en la tabla `usuarios`, con dos
+  roles: `admin` y `vendedor` (Fase 9) — ya no es un solo admin
+  hardcodeado en `.env` (eso era la Fase 6). Ambos roles ven y editan
+  todos los leads igual, sin ninguna restricción; la única diferencia es
+  que solo `admin` puede crear/gestionar cuentas de usuario
+  (`/crm/usuarios`). El token JWT se guarda solo en memoria (React
+  Context), no en `localStorage`: si se recarga la página, hay que
+  iniciar sesión de nuevo.
 
 ### Configuración de seguridad hardcodeada (Fase 8)
 - Rate limits en `backend/src/middleware/rateLimit.js`: login 5 intentos /

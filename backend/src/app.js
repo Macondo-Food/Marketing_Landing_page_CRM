@@ -6,6 +6,7 @@ import leadsRouter from './routes/leads.routes.js';
 import calendarRouter from './routes/calendar.routes.js';
 import authRouter from './routes/auth.routes.js';
 import dashboardRouter from './routes/dashboard.routes.js';
+import usuariosRouter from './routes/usuarios.routes.js';
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/leads', leadsRouter);
 app.use('/calendar', calendarRouter);
 app.use('/auth', authRouter);
 app.use('/dashboard', dashboardRouter);
+app.use('/usuarios', usuariosRouter);
 
 const PORT = process.env.PORT || 3001;
 

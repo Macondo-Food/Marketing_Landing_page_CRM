@@ -5,18 +5,21 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
+  const [usuario, setUsuario] = useState(null);
 
-  async function login(usuario, password) {
-    const data = await loginRequest(usuario, password);
+  async function login(email, password) {
+    const data = await loginRequest(email, password);
     setToken(data.token);
+    setUsuario(data.usuario);
   }
 
   function logout() {
     setToken(null);
+    setUsuario(null);
   }
 
   return (
-    <AuthContext.Provider value={{ token, login, logout }}>
+    <AuthContext.Provider value={{ token, usuario, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

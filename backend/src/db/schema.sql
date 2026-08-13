@@ -34,3 +34,14 @@ CREATE TABLE IF NOT EXISTS respuestas_quiz (
     FOREIGN KEY (lead_id) REFERENCES leads(id)
     ON DELETE CASCADE
 );
+
+-- Usuarios del CRM (Fase de sistema de usuarios con roles). El primer admin
+-- se crea con backend/scripts/seed-admin.mjs, no manualmente.
+CREATE TABLE IF NOT EXISTS usuarios (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(150) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  rol ENUM('admin', 'vendedor') NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
