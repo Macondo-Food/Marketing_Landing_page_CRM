@@ -121,3 +121,22 @@ export function deleteUsuario(token, id) {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
+
+// (token) -> [{ id, url_completa, utm_source, utm_medium, utm_campaign, utm_content, created_at, creado_por_nombre }, ...]
+export function getUtmUrls(token) {
+  return request('/utm-urls', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// (token, { utm_source, utm_campaign, utm_content }) -> { id, url_completa, utm_source, utm_medium, utm_campaign, utm_content, creado_por_nombre }
+export function createUtmUrl(token, payload) {
+  return request('/utm-urls', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}

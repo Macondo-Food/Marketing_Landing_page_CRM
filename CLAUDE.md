@@ -326,6 +326,65 @@ medias**.
   volver a iniciar sesión (comportamiento esperado de un JWT sin estado,
   no un bug).
 
+### Fase 10 — Generador de URLs con UTMs preestablecidos (`/crm/generador-utm`)
+- Herramienta dentro del CRM, accesible para **cualquier rol** (a
+  diferencia de `/crm/usuarios`, que es solo admin) — arma la URL de la
+  landing con UTMs ya seleccionados desde un formulario, en vez de
+  escribirlos a mano en Meta/LinkedIn Ads Manager.
+- **Backend:**
+  - Tabla `utm_urls` agregada a `backend/src/db/schema.sql` (`CREATE
+    TABLE IF NOT EXISTS`): `id`, `url_completa`, `utm_source`,
+    `utm_medium`, `utm_campaign`, `utm_content` (nullable), `creado_por`
+    (FK a `usuarios.id`), `created_at`. La FK **no tiene `ON DELETE`** a
+    propósito — el default de InnoDB (`RESTRICT`) bloquea borrar un
+    usuario que ya generó URLs en vez de decidir en silencio qué pasa
+    con ese historial.
+  - `GET /utm-urls` y `POST /utm-urls` (`controllers/utm.controller.js`
+    + `routes/utm.routes.js`, montado en `app.js`), protegidos con
+    `requireAuth` genérico (no `requireAdmin`): cualquier rol puede
+    generar y ver el historial.
+  - `GET /utm-urls` hace `JOIN` con `usuarios` para devolver el nombre
+    de quien generó cada URL, ordenado por `created_at DESC, id DESC`
+    (el `id` como desempate porque `created_at` es `DATETIME` —
+    precisión de un segundo — y dos URLs generadas en el mismo segundo
+    quedarían con orden ambiguo si solo se ordenara por fecha).
+  - `POST /utm-urls` arma la URL completa contra el dominio base
+    `https://www.macondosoftwares.com/vsl` (constante en el controller)
+    y **deriva `utm_medium` de la plataforma** (`utm_source`), no lo
+    recibe del cliente: `meta`, `linkedin`, `google_ads`, `tiktok_ads`
+    → `cpc`; `organico` → `social` (ver la decisión abajo). Guarda
+    `creado_por` con el usuario del token (`req.user.userId`).
+- **Frontend:**
+  - `frontend/src/pages/GeneradorUTM.jsx` (nuevo, ruta
+    `/crm/generador-utm`): formulario (plataforma, campaña, content
+    opcional) → `POST /utm-urls`, muestra la URL generada con botón
+    "Copiar" (`navigator.clipboard`); debajo, tabla con el historial
+    completo (`GET /utm-urls`) con su propio botón "Copiar" por fila.
+  - `frontend/src/services/api.js`: `getUtmUrls`, `createUtmUrl`.
+  - `frontend/src/App.jsx`: ruta `/crm/generador-utm`.
+  - `frontend/src/pages/CRM.jsx`: link "Generar URL" en la navegación,
+    visible para **cualquier rol** (a diferencia del link "Usuarios",
+    que sigue condicionado a `rol === 'admin'`).
+- **Decisión: `utm_medium=social` para `organico`, no `organic`.** Las 4
+  plataformas de pauta (`meta`, `linkedin`, `google_ads`, `tiktok_ads`)
+  usan `cpc`, la convención estándar de Google Analytics para tráfico
+  pagado. Pero `utm_medium=organic` está reservado por convención para
+  tráfico de buscador (Google/Bing) que GA ya detecta solo por el
+  referrer — taguearlo a mano ahí puede pisar esa detección automática
+  en vez de sumar información nueva. Como `organico` acá representa
+  compartir el link **sin pauta** en redes (bio, post, story), `social`
+  es la etiqueta que realmente lo describe, y es consistente con el
+  mismo canal que las otras 4 opciones, solo que sin pago.
+- **Verificado con una base de datos descartable** (creada, con el
+  schema aplicado, y borrada al final — nunca se tocó `vsl_macondo`
+  directamente): login, `GET /utm-urls` sin token (`401`) y con token
+  (`200`), `POST /utm-urls` deriva `cpc`/`social` correctamente según la
+  plataforma, arma la URL completa con y sin `utm_content`, incluye el
+  nombre del creador en la respuesta, rechaza `utm_source` inválido y
+  `utm_campaign` vacío (`400` en ambos), y el historial queda ordenado
+  más reciente primero incluso con registros creados en el mismo
+  segundo.
+
 ---
 
 ## 2. Verificaciones recientes y lecciones aprendidas
@@ -387,13 +446,12 @@ vacíos (0 bytes) — nadie ha pegado contenido ahí todavía.
 Pedidas por el usuario el 2026-08-12 para retomar en una sesión futura —
 documentadas tal cual se pidieron, sin diseñar la implementación ni el
 alcance exacto todavía. No confundir con la sección 3 (esas sí están listas
-para construirse ya; estas necesitan más definición primero).
+para construirse ya; estas necesitan más definición primero). De las 3, solo
+queda pendiente el ítem 2.
 
-1. **Generador de URLs con UTMs preestablecidos** — herramienta dentro del
-   CRM (`/crm`) para armar la URL de la landing con
-   `utm_source`/`utm_medium`/`utm_campaign`/`utm_content` ya seleccionados
-   desde un formulario, en vez de escribirlos a mano en Meta/LinkedIn Ads
-   Manager.
+1. **Generador de URLs con UTMs preestablecidos — completada en la Fase
+   10** (ver sección 1). Página `/crm/generador-utm`, accesible para
+   cualquier rol (no solo admin), con historial de URLs generadas.
 2. **Vista de detalle de lead** — al hacer clic en un lead desde la tabla
    del CRM, ver más información y poder ir agregando datos adicionales
    (notas de seguimiento, historial de contacto, etc.). **Alcance exacto

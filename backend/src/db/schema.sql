@@ -45,3 +45,20 @@ CREATE TABLE IF NOT EXISTS usuarios (
   rol ENUM('admin', 'vendedor') NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Historial del generador de URLs con UTMs preestablecidos (cualquier rol
+-- del CRM puede generar). Sin ON DELETE en creado_por a propósito: no debe
+-- ser posible borrar un usuario que ya generó URLs sin decidir antes qué
+-- pasa con ese historial (el default de InnoDB, RESTRICT, lo bloquea).
+CREATE TABLE IF NOT EXISTS utm_urls (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  url_completa VARCHAR(500) NOT NULL,
+  utm_source VARCHAR(100) NOT NULL,
+  utm_medium VARCHAR(100) NOT NULL,
+  utm_campaign VARCHAR(150) NOT NULL,
+  utm_content VARCHAR(150) NULL,
+  creado_por INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_utm_urls_usuario
+    FOREIGN KEY (creado_por) REFERENCES usuarios(id)
+);

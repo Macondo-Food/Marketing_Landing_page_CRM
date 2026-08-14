@@ -7,6 +7,7 @@ import calendarRouter from './routes/calendar.routes.js';
 import authRouter from './routes/auth.routes.js';
 import dashboardRouter from './routes/dashboard.routes.js';
 import usuariosRouter from './routes/usuarios.routes.js';
+import utmRouter from './routes/utm.routes.js';
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use('/calendar', calendarRouter);
 app.use('/auth', authRouter);
 app.use('/dashboard', dashboardRouter);
 app.use('/usuarios', usuariosRouter);
+app.use('/utm-urls', utmRouter);
 
 const PORT = process.env.PORT || 3001;
 

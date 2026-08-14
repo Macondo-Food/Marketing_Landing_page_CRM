@@ -188,6 +188,21 @@ function Dashboard() {
           >
             Ver dashboard
           </Link>
+          <Link
+            to="/crm/generador-utm"
+            style={{
+              padding: '8px 16px',
+              borderRadius: 999,
+              border: '1px solid rgba(255,255,255,.16)',
+              color: '#fff',
+              textDecoration: 'none',
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 600,
+              fontSize: 12,
+            }}
+          >
+            Generar URL
+          </Link>
           {usuario?.rol === 'admin' && (
             <Link
               to="/crm/usuarios"
