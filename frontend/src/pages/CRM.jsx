@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getLeads, updateLeadEstado } from '../services/api.js';
 import Login from './Login.jsx';
+import '../styles/crm.css';
 
 const ESTADOS_EDITABLES = [
   'con_requisitos',
@@ -22,13 +23,13 @@ const ESTADO_LABELS = {
 };
 
 const ESTADO_COLORS = {
-  descalificado: { bg: 'rgba(180,180,180,.15)', text: '#B4B4B4' },
-  calificado: { bg: 'rgba(248,245,34,.15)', text: '#F8F522' },
-  agendado: { bg: 'rgba(59,130,246,.15)', text: '#60A5FA' },
-  con_requisitos: { bg: 'rgba(34,184,207,.15)', text: '#22B8CF' },
-  sin_requisitos_reunion: { bg: 'rgba(245,158,11,.15)', text: '#F59E0B' },
-  reunion_cierre: { bg: 'rgba(167,139,250,.15)', text: '#A78BFA' },
-  venta_servicio: { bg: 'rgba(74,222,128,.15)', text: '#4ADE80' },
+  descalificado: { bg: 'rgba(107,107,107,.12)', text: '#6B6B6B' },
+  calificado: { bg: 'rgba(217,164,6,.15)', text: '#9A7B0A' },
+  agendado: { bg: 'rgba(37,99,235,.12)', text: '#2563EB' },
+  con_requisitos: { bg: 'rgba(14,116,144,.12)', text: '#0E7490' },
+  sin_requisitos_reunion: { bg: 'rgba(180,83,9,.12)', text: '#B45309' },
+  reunion_cierre: { bg: 'rgba(124,58,237,.12)', text: '#7C3AED' },
+  venta_servicio: { bg: 'rgba(21,128,61,.12)', text: '#15803D' },
 };
 
 function EstadoBadge({ estado }) {
@@ -70,24 +71,37 @@ const thStyle = {
   fontWeight: 700,
   letterSpacing: '.06em',
   textTransform: 'uppercase',
-  color: '#B4B4B4',
-  borderBottom: '1px solid rgba(255,255,255,.12)',
+  color: '#6B6B6B',
+  background: '#FAFAFA',
+  borderBottom: '1px solid #E4E4E7',
 };
 
 const tdStyle = {
   padding: '12px 14px',
   fontSize: 14,
-  borderBottom: '1px solid rgba(255,255,255,.06)',
+  color: '#1F1F1F',
+  borderBottom: '1px solid #EEEEEF',
   verticalAlign: 'middle',
 };
 
 const selectStyle = {
   padding: '6px 10px',
-  borderRadius: 8,
-  border: '1px solid rgba(255,255,255,.16)',
-  background: '#0C0C0C',
-  color: '#fff',
+  borderRadius: 6,
+  border: '1px solid #DADADE',
   fontSize: 12,
+};
+
+const navLinkStyle = {
+  padding: '8px 16px',
+  borderRadius: 6,
+  border: '1px solid #DADADE',
+  background: '#fff',
+  color: '#1F1F1F',
+  textDecoration: 'none',
+  fontFamily: 'Montserrat, sans-serif',
+  fontWeight: 600,
+  fontSize: 12,
+  boxShadow: '0 1px 2px rgba(0,0,0,.04)',
 };
 
 function Dashboard() {
@@ -143,8 +157,8 @@ function Dashboard() {
     <div
       style={{
         minHeight: '100vh',
-        background: '#000',
-        color: '#fff',
+        background: '#F9F9F9',
+        color: '#1F1F1F',
         fontFamily: "'Source Sans 3', system-ui, sans-serif",
         WebkitFontSmoothing: 'antialiased',
         padding: '32px 24px',
@@ -160,7 +174,7 @@ function Dashboard() {
               fontWeight: 700,
               letterSpacing: '.14em',
               textTransform: 'uppercase',
-              color: '#F8F522',
+              color: '#714B67',
             }}
           >
             CRM Macondo
@@ -169,71 +183,22 @@ function Dashboard() {
             Leads
           </h1>
           {usuario?.nombre && (
-            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#B4B4B4' }}>Hola, {usuario.nombre}</p>
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#6B6B6B' }}>Hola, {usuario.nombre}</p>
           )}
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <Link
-            to="/crm/dashboard"
-            style={{
-              padding: '8px 16px',
-              borderRadius: 999,
-              border: '1px solid rgba(255,255,255,.16)',
-              color: '#fff',
-              textDecoration: 'none',
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 600,
-              fontSize: 12,
-            }}
-          >
+          <Link to="/crm/dashboard" style={navLinkStyle}>
             Ver dashboard
           </Link>
-          <Link
-            to="/crm/generador-utm"
-            style={{
-              padding: '8px 16px',
-              borderRadius: 999,
-              border: '1px solid rgba(255,255,255,.16)',
-              color: '#fff',
-              textDecoration: 'none',
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 600,
-              fontSize: 12,
-            }}
-          >
+          <Link to="/crm/generador-utm" style={navLinkStyle}>
             Generar URL
           </Link>
           {usuario?.rol === 'admin' && (
-            <Link
-              to="/crm/usuarios"
-              style={{
-                padding: '8px 16px',
-                borderRadius: 999,
-                border: '1px solid rgba(255,255,255,.16)',
-                color: '#fff',
-                textDecoration: 'none',
-                fontFamily: 'Montserrat, sans-serif',
-                fontWeight: 600,
-                fontSize: 12,
-              }}
-            >
+            <Link to="/crm/usuarios" style={navLinkStyle}>
               Usuarios
             </Link>
           )}
-          <button
-            onClick={logout}
-            style={{
-              padding: '8px 16px',
-              borderRadius: 999,
-              border: '1px solid rgba(255,255,255,.16)',
-              background: 'transparent',
-              color: '#fff',
-              cursor: 'pointer',
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 600,
-              fontSize: 12,
-            }}
-          >
+          <button onClick={logout} style={{ ...navLinkStyle, cursor: 'pointer' }}>
             Cerrar sesión
           </button>
         </div>
@@ -245,8 +210,8 @@ function Dashboard() {
             margin: '0 0 20px',
             padding: '10px 14px',
             borderRadius: 8,
-            background: 'rgba(255,107,107,.12)',
-            color: '#FF6B6B',
+            background: 'rgba(220,53,69,.08)',
+            color: '#DC3545',
             fontSize: 13,
           }}
         >
@@ -254,19 +219,20 @@ function Dashboard() {
         </p>
       )}
 
-      {status === 'loading' && <p style={{ color: '#B4B4B4' }}>Cargando leads…</p>}
+      {status === 'loading' && <p style={{ color: '#6B6B6B' }}>Cargando leads…</p>}
 
       {status === 'error' && (
         <div>
-          <p style={{ color: '#FF6B6B', marginBottom: 12 }}>{error}</p>
+          <p style={{ color: '#DC3545', marginBottom: 12 }}>{error}</p>
           <button
             onClick={loadLeads}
             style={{
               padding: '10px 20px',
-              borderRadius: 999,
+              borderRadius: 6,
               border: 'none',
-              background: '#F8F522',
-              color: '#000',
+              boxShadow: '0 1px 2px rgba(0,0,0,.12)',
+              background: '#714B67',
+              color: '#fff',
               cursor: 'pointer',
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 700,
@@ -279,12 +245,20 @@ function Dashboard() {
       )}
 
       {status === 'ready' && leads.length === 0 && (
-        <p style={{ color: '#B4B4B4' }}>Todavía no hay leads registrados.</p>
+        <p style={{ color: '#6B6B6B' }}>Todavía no hay leads registrados.</p>
       )}
 
       {status === 'ready' && leads.length > 0 && (
-        <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,.1)', borderRadius: 12 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div
+          style={{
+            overflowX: 'auto',
+            border: '1px solid #E4E4E7',
+            borderRadius: 10,
+            background: '#fff',
+            boxShadow: '0 1px 3px rgba(0,0,0,.04)',
+          }}
+        >
+          <table className="crm-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 <th style={thStyle}>Nombre</th>
@@ -299,7 +273,11 @@ function Dashboard() {
             <tbody>
               {leads.map((lead) => (
                 <tr key={lead.id}>
-                  <td style={tdStyle}>{lead.nombre}</td>
+                  <td style={tdStyle}>
+                    <Link to={`/crm/leads/${lead.id}`} style={{ color: '#714B67', fontWeight: 600 }}>
+                      {lead.nombre}
+                    </Link>
+                  </td>
                   <td style={tdStyle}>{lead.email}</td>
                   <td style={tdStyle}>{lead.telefono}</td>
                   <td style={tdStyle}>{lead.utm_source ?? '—'}</td>
@@ -309,10 +287,11 @@ function Dashboard() {
                   <td style={tdStyle}>{formatFecha(lead.created_at)}</td>
                   <td style={tdStyle}>
                     {lead.estado === 'descalificado' ? (
-                      <span style={{ color: '#6B6B6B', fontSize: 12 }}>—</span>
+                      <span style={{ color: '#9A9A9A', fontSize: 12 }}>—</span>
                     ) : (
                       <>
                         <select
+                          className="crm-select"
                           value={ESTADOS_EDITABLES.includes(lead.estado) ? lead.estado : ''}
                           onChange={(e) => handleEstadoChange(lead.id, e.target.value)}
                           disabled={savingId === lead.id}
@@ -328,7 +307,7 @@ function Dashboard() {
                           ))}
                         </select>
                         {rowErrors[lead.id] && (
-                          <p style={{ margin: '4px 0 0', fontSize: 11, color: '#FF6B6B' }}>
+                          <p style={{ margin: '4px 0 0', fontSize: 11, color: '#DC3545' }}>
                             {rowErrors[lead.id]}
                           </p>
                         )}

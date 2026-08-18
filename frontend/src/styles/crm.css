@@ -1,0 +1,25 @@
+/* Tema claro estilo Odoo, exclusivo para /crm, /crm/dashboard, /crm/usuarios,
+   /crm/generador-utm y Login. No se importa desde la landing pública. */
+
+.crm-select {
+  background-color: #ffffff;
+  color: #1f1f1f;
+}
+
+.crm-select option {
+  background-color: #ffffff;
+  color: #1f1f1f;
+}
+
+.crm-select:disabled {
+  color: #9a9a9a;
+  background-color: #f4f4f5;
+}
+
+.crm-table tbody tr:hover {
+  background: #f7f6f8;
+}
+
+.crm-input::placeholder {
+  color: #9a9a9a;
+}

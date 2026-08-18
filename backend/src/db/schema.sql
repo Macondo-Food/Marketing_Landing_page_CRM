@@ -1,16 +1,25 @@
 -- Modelo de datos según la sección 4 del plan.
 -- Ejecutar manualmente contra la base de datos definida en DB_NAME (backend/.env).
 
+-- Nota (Fase 11): desde esta fase, un lead que descalifica en el quiz ya no
+-- se guarda aquí — va a la tabla `contactos`. Por eso `calificado` en la
+-- práctica siempre es TRUE para filas nuevas; se deja la columna (en vez de
+-- quitarla) porque el dashboard (Fase 7) ya consulta `calificado = 1` y no
+-- es parte del alcance de esta fase tocarlo.
 CREATE TABLE IF NOT EXISTS leads (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(150) NOT NULL,
   email VARCHAR(150) NOT NULL,
   telefono VARCHAR(30) NOT NULL,
+  empresa VARCHAR(150) NOT NULL,
   utm_source VARCHAR(100) NULL,
   utm_medium VARCHAR(100) NULL,
   utm_campaign VARCHAR(150) NULL,
   utm_content VARCHAR(150) NULL,
   calificado BOOLEAN NOT NULL,
+  prioridad ENUM('alta', 'media_alta', 'en_revision') NOT NULL,
+  tratamiento_datos_aceptado BOOLEAN NOT NULL DEFAULT FALSE,
+  tratamiento_datos_fecha DATETIME NULL,
   estado ENUM(
     'descalificado',
     'calificado',
@@ -33,6 +42,27 @@ CREATE TABLE IF NOT EXISTS respuestas_quiz (
   CONSTRAINT fk_respuestas_quiz_lead
     FOREIGN KEY (lead_id) REFERENCES leads(id)
     ON DELETE CASCADE
+);
+
+-- Contactos (Fase 11): quienes responden el quiz pero descalifican en
+-- cualquiera de las 4 preguntas. Misma info de contacto que leads, pero sin
+-- el pipeline de ventas (`estado`) — en su lugar, por qué no calificó y si
+-- el equipo ya lo llamó.
+CREATE TABLE IF NOT EXISTS contactos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(150) NOT NULL,
+  email VARCHAR(150) NOT NULL,
+  telefono VARCHAR(30) NOT NULL,
+  empresa VARCHAR(150) NOT NULL,
+  utm_source VARCHAR(100) NULL,
+  utm_medium VARCHAR(100) NULL,
+  utm_campaign VARCHAR(150) NULL,
+  utm_content VARCHAR(150) NULL,
+  motivo_descalificacion TEXT NULL,
+  contactado BOOLEAN NOT NULL DEFAULT FALSE,
+  tratamiento_datos_aceptado BOOLEAN NOT NULL DEFAULT FALSE,
+  tratamiento_datos_fecha DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Usuarios del CRM (Fase de sistema de usuarios con roles). El primer admin
@@ -62,3 +92,58 @@ CREATE TABLE IF NOT EXISTS utm_urls (
   CONSTRAINT fk_utm_urls_usuario
     FOREIGN KEY (creado_por) REFERENCES usuarios(id)
 );
+
+-- Festivos de Colombia (Fase 13): tabla editable en vez de hardcodear fechas
+-- en el código — el equipo puede agregar el año siguiente (o corregir una
+-- fecha) directamente en la base de datos. `fecha` es UNIQUE para que el
+-- INSERT IGNORE de abajo se pueda re-correr sin duplicar filas.
+CREATE TABLE IF NOT EXISTS festivos_colombia (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  fecha DATE NOT NULL UNIQUE,
+  descripcion VARCHAR(150) NOT NULL
+);
+
+-- Festivos 2026 confirmados. Pendiente: "Virgen de Chiquinquirá" — la fecha
+-- exacta está en disputa entre fuentes (9 o 13 de julio); se agrega en un
+-- INSERT aparte cuando se confirme, no adivinar aquí.
+INSERT IGNORE INTO festivos_colombia (fecha, descripcion) VALUES
+  ('2026-01-01', 'Año Nuevo'),
+  ('2026-01-12', 'Reyes Magos'),
+  ('2026-03-23', 'San José'),
+  ('2026-04-02', 'Jueves Santo'),
+  ('2026-04-03', 'Viernes Santo'),
+  ('2026-05-01', 'Día del Trabajo'),
+  ('2026-05-18', 'Ascensión del Señor'),
+  ('2026-06-08', 'Corpus Christi'),
+  ('2026-06-15', 'Sagrado Corazón'),
+  ('2026-06-29', 'San Pedro y San Pablo'),
+  ('2026-07-20', 'Independencia de Colombia'),
+  ('2026-08-07', 'Batalla de Boyacá'),
+  ('2026-08-17', 'Asunción de la Virgen'),
+  ('2026-10-12', 'Día de la Raza'),
+  ('2026-11-16', 'Independencia de Cartagena'),
+  ('2026-12-08', 'Inmaculada Concepción'),
+  ('2026-12-25', 'Navidad');
+
+-- festivos_colombia es tabla nueva (no requiere ALTER TABLE como leads más
+-- abajo): correr todo este schema.sql de nuevo contra vsl_macondo real es
+-- seguro, tanto el CREATE TABLE IF NOT EXISTS como el INSERT IGNORE no
+-- tocan nada si ya existen.
+
+-- ---------------------------------------------------------------------------
+-- Migración Fase 11 para bases de datos EXISTENTES (como vsl_macondo real):
+-- `CREATE TABLE IF NOT EXISTS leads` de arriba no toca la tabla si ya existe,
+-- así que las columnas nuevas hay que agregarlas a mano con ALTER TABLE.
+-- `contactos` sí se crea sola con el CREATE TABLE de arriba (es nueva).
+--
+-- empresa/tratamiento_datos_aceptado quedan NOT NULL pero con DEFAULT
+-- temporal para no romper las filas existentes; revisar esas filas viejas
+-- a mano después si hace falta un valor real. prioridad usa 'en_revision'
+-- como default de backfill por la misma razón (leads viejos no pasaron por
+-- la lógica nueva de la Pregunta 4).
+-- ---------------------------------------------------------------------------
+-- ALTER TABLE leads
+--   ADD COLUMN empresa VARCHAR(150) NOT NULL DEFAULT '' AFTER telefono,
+--   ADD COLUMN prioridad ENUM('alta', 'media_alta', 'en_revision') NOT NULL DEFAULT 'en_revision' AFTER calificado,
+--   ADD COLUMN tratamiento_datos_aceptado BOOLEAN NOT NULL DEFAULT FALSE AFTER prioridad,
+--   ADD COLUMN tratamiento_datos_fecha DATETIME NULL AFTER tratamiento_datos_aceptado;

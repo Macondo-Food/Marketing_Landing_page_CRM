@@ -4,6 +4,7 @@ import CRM from './pages/CRM.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Usuarios from './pages/Usuarios.jsx';
 import GeneradorUTM from './pages/GeneradorUTM.jsx';
+import LeadDetalle from './pages/LeadDetalle.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 
 // /crm y /crm/dashboard comparten el mismo AuthProvider (token en memoria)
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/crm/dashboard" element={<Dashboard />} />
           <Route path="/crm/usuarios" element={<Usuarios />} />
           <Route path="/crm/generador-utm" element={<GeneradorUTM />} />
+          <Route path="/crm/leads/:id" element={<LeadDetalle />} />
         </Route>
       </Routes>
     </BrowserRouter>

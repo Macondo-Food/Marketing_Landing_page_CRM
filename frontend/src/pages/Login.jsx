@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
+import '../styles/crm.css';
 
 const inputStyle = {
   width: '100%',
   padding: '12px 14px',
-  borderRadius: 10,
-  border: '1px solid rgba(255,255,255,.16)',
-  background: 'transparent',
-  color: '#fff',
+  borderRadius: 8,
+  border: '1px solid #DADADE',
+  background: '#fff',
+  color: '#1F1F1F',
   fontSize: 14,
   fontFamily: "'Source Sans 3', system-ui, sans-serif",
 };
@@ -19,7 +20,7 @@ const labelStyle = {
   fontSize: 12,
   fontWeight: 600,
   letterSpacing: '.04em',
-  color: '#B4B4B4',
+  color: '#6B6B6B',
 };
 
 export default function Login() {
@@ -45,8 +46,8 @@ export default function Login() {
     <div
       style={{
         minHeight: '100vh',
-        background: '#000',
-        color: '#fff',
+        background: '#F9F9F9',
+        color: '#1F1F1F',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -59,9 +60,10 @@ export default function Login() {
         style={{
           width: '100%',
           maxWidth: 360,
-          background: '#0C0C0C',
-          border: '1px solid rgba(248,245,34,.35)',
-          borderRadius: 14,
+          background: '#fff',
+          border: '1px solid #E4E4E7',
+          borderRadius: 10,
+          boxShadow: '0 2px 10px rgba(0,0,0,.06)',
           padding: '32px 28px',
         }}
       >
@@ -73,7 +75,7 @@ export default function Login() {
             fontWeight: 700,
             letterSpacing: '.14em',
             textTransform: 'uppercase',
-            color: '#F8F522',
+            color: '#714B67',
           }}
         >
           CRM Macondo
@@ -84,6 +86,7 @@ export default function Login() {
             fontFamily: 'Montserrat, sans-serif',
             fontWeight: 700,
             fontSize: 20,
+            color: '#1F1F1F',
           }}
         >
           Inicia sesión
@@ -112,7 +115,7 @@ export default function Login() {
         </div>
 
         {status === 'error' && (
-          <p style={{ margin: '0 0 16px', fontSize: 13, color: '#FF6B6B' }}>{error}</p>
+          <p style={{ margin: '0 0 16px', fontSize: 13, color: '#DC3545' }}>{error}</p>
         )}
 
         <button
@@ -121,10 +124,11 @@ export default function Login() {
           style={{
             width: '100%',
             padding: '12px 28px',
-            borderRadius: 999,
+            borderRadius: 6,
             border: 'none',
-            background: status === 'loading' ? 'rgba(248,245,34,.35)' : '#F8F522',
-            color: '#000',
+            boxShadow: '0 1px 2px rgba(0,0,0,.12)',
+            background: status === 'loading' ? '#B79AB1' : '#714B67',
+            color: '#fff',
             cursor: status === 'loading' ? 'default' : 'pointer',
             fontFamily: 'Montserrat, sans-serif',
             fontWeight: 700,

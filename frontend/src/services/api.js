@@ -64,6 +64,15 @@ export function getLeads(token) {
   });
 }
 
+// (token, id) -> { id, nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign,
+//                   utm_content, calificado, prioridad, estado, calendar_event_id, created_at,
+//                   respuestas: [{ pregunta, respuesta }, ...] }
+export function getLeadDetalle(token, id) {
+  return request(`/leads/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 // (token, id, estado) -> { id, estado }
 export function updateLeadEstado(token, id, estado) {
   return request(`/leads/${id}/estado`, {

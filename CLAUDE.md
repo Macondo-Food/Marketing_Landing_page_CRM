@@ -1,6 +1,6 @@
 # Bitácora de estado — Proyecto VSL Macondo
 
-Última actualización: 2026-08-13.
+Última actualización: 2026-08-17.
 
 Este archivo es un resumen del estado real del código para retomar el trabajo
 sin tener que releer toda la conversación. La fuente de verdad del **diseño
@@ -385,6 +385,145 @@ medias**.
   más reciente primero incluso con registros creados en el mismo
   segundo.
 
+### Fase 11 — Ajustes al formulario de calificación y al modelo de datos
+- Ajustes pedidos por el jefe/PM: campo `empresa`, checkbox de tratamiento
+  de datos, tabla `contactos` separada para quienes descalifican en el
+  quiz, y niveles de `prioridad` en vez de un simple booleano `calificado`.
+- **Base de datos:**
+  - Tabla nueva `contactos` en `schema.sql`: misma info de contacto que
+    `leads` (nombre, email, telefono, empresa, utms) pero sin el pipeline
+    de ventas (`estado`) — en su lugar `motivo_descalificacion` (texto) y
+    `contactado` (boolean, default false, para que el equipo marque cuando
+    ya lo llamaron).
+  - `leads` gana `empresa` (VARCHAR NOT NULL), `prioridad` (ENUM:
+    `alta`/`media_alta`/`en_revision`, NOT NULL), `tratamiento_datos_aceptado`
+    (BOOLEAN NOT NULL) y `tratamiento_datos_fecha` (DATETIME). Los mismos
+    dos últimos campos también en `contactos`.
+  - Como `leads` ya existía en `vsl_macondo` real, `schema.sql` incluye un
+    bloque de migración `ALTER TABLE` comentado al final (el `CREATE TABLE
+    IF NOT EXISTS` no toca una tabla existente) — se probó contra una tabla
+    simulando el esquema real antes de dejarlo documentado, para confirmar
+    que corre limpio con datos existentes.
+- **Backend (`qualification.service.js` reescrito):**
+  - Pregunta 2 (proveedor de nube): se agregan IBM Cloud y Huawei Cloud
+    como opciones que califican; "Otros proveedores / Hosting tradicional"
+    pasa a descalificar, con un campo `detalle` de texto libre opcional que
+    se incorpora al motivo de descalificación.
+  - Pregunta 4 (industria): ya no es un simple sí/no — define `prioridad`
+    cuando el lead califica: "Software/SaaS/Plataformas Digitales" y
+    "Servicios de TI/BPO/Contact Centers" → `alta`; "FinTech/E-commerce/
+    AdTech" → `media_alta`; "Comercio/Retail/Servicios Tradicionales" →
+    descalifica; "Otro sector" → `en_revision` (sigue calificando, pero
+    queda marcado para revisión manual).
+  - `POST /leads` (`leads.controller.js`) ahora valida `empresa` y
+    `tratamiento_datos_aceptado` como requeridos (`400` si faltan). Si el
+    resultado descalifica (por cualquiera de las 4 preguntas), inserta en
+    `contactos` en vez de `leads`, con el motivo armado a partir de las
+    respuestas que descalificaron. Si califica, inserta en `leads` como
+    antes, guardando también `prioridad`.
+  - `GET /contactos` (nuevo, `contactos.controller.js` +
+    `contactos.routes.js`, montado en `app.js`), protegido con el mismo
+    `requireAuth` genérico que `/leads` — para poder listarlos después en
+    el CRM (todavía sin UI para esto, ver sección 4, ítem 6).
+- **Frontend (`QuizPopup.jsx`):**
+  - Paso de contacto (paso 0) gana el campo "Empresa" (requerido) y un
+    checkbox "Acepto el tratamiento de mis datos personales..." (requerido
+    para poder avanzar).
+  - Pregunta 2 actualizada con IBM Cloud, Huawei Cloud, y un campo de texto
+    libre condicional que aparece solo al elegir "Otros proveedores /
+    Hosting tradicional".
+  - El payload final incluye `empresa` y `tratamiento_datos_aceptado: true`;
+    la fecha/hora de aceptación (`tratamiento_datos_fecha`) la genera el
+    backend al momento de insertar, no el cliente.
+- Verificado con una base de datos descartable (creada, poblada y borrada
+  al final — nunca se tocó `vsl_macondo` directamente): caso de prioridad
+  alta (Software/SaaS) → `leads`; caso en_revisión ("Otro sector") →
+  `leads`; caso descalifica (proveedor "Otros/Hosting" con detalle +
+  industria "Comercio/Retail") → `contactos`, con el motivo listando ambas
+  razones y el detalle del proveedor incluido. También se probó la
+  migración `ALTER TABLE` contra una tabla simulando el esquema real de
+  `vsl_macondo`, y las validaciones `400` de `empresa`/
+  `tratamiento_datos_aceptado` faltantes.
+
+### Fase 12 — Vista de detalle de lead (`/crm/leads/:id`)
+- Alcance confirmado con el usuario: nombre, email, teléfono, empresa + las
+  4 respuestas del quiz. Solo para `leads`, no para `contactos` (eso se
+  trabaja aparte, ver sección 4, ítem 6).
+- **Backend:** `GET /leads/:id` (nuevo, protegido con `requireAuth`
+  genérico, cualquier rol) en `leads.controller.js` + `leads.routes.js`:
+  devuelve el lead completo (incluyendo `empresa`, `prioridad`, utms,
+  `estado`, `calendar_event_id`) más sus respuestas de `respuestas_quiz`
+  (`pregunta` + `respuesta`). `404` si no existe, `400` si el id no es un
+  entero válido.
+- **Frontend:**
+  - `frontend/src/services/api.js`: `getLeadDetalle(token, id)`.
+  - `frontend/src/pages/CRM.jsx`: el nombre de cada lead en la tabla ahora
+    es un link a `/crm/leads/:id` (única modificación a este archivo en
+    esta fase).
+  - `frontend/src/pages/LeadDetalle.jsx` (nuevo): datos de contacto, origen
+    (UTMs), badges de estado y prioridad (mismo estilo visual que la tabla
+    de leads), las 4 respuestas del quiz en formato legible (pregunta →
+    respuesta, no JSON crudo), aviso de si ya tiene reunión agendada (sin
+    el link de Meet — eso se toca en la Fase 15), y botón "Volver a leads".
+  - `frontend/src/App.jsx`: ruta `/crm/leads/:id` agregada dentro del mismo
+    `CrmLayout`/`AuthProvider` que el resto del CRM.
+- Verificado con una base de datos descartable (creada, poblada y borrada
+  al final — nunca se tocó `vsl_macondo`): `GET /leads/1` con detalle
+  completo + respuestas, `GET /leads/999` → `404`, sin token → `401`, id
+  inválido → `400` (todo vía curl); y en navegador real contra esa misma
+  base de prueba: login → tabla de leads → clic en el nombre → detalle con
+  badges, UTMs y respuestas del quiz renderizados correctamente → "Volver a
+  leads".
+
+### Fase 13 — Escasez y horarios restringidos para el calendario
+- Objetivo: dar sensación de escasez en los horarios de reserva, reflejar
+  un tiempo de preparación real antes de una llamada, y sacar los festivos
+  de Colombia del código a una tabla editable.
+- Horario reservable: solo **10:00am-12:00pm y 2:00pm-4:00pm** (slots de
+  30 min, igual que antes). Los bloques 9:00-10:00am, 12:00-2:00pm y
+  4:00-5:00pm ya no se ofrecen como reservables ni se consultan contra
+  Google Calendar — simplemente no existen como opción.
+  - **Corrección a una contradicción en el pedido original:** la regla del
+    horario reservable decía "10:00am-12:00pm y 2:00pm-**5:00pm**", pero la
+    regla de bloques excluidos pedía excluir justo 4:00-5:00pm — ambas no
+    podían ser ciertas a la vez. Se confirmó con el usuario y quedó la
+    tarde reservable en **2:00pm-4:00pm** (no 5:00pm), la que parte el día
+    9am-5pm original en bloques reservables/excluidos sin huecos ni
+    superposición.
+- Colchón de preparación: 1 día hábil se salta por completo antes de
+  empezar a ofrecer horarios (si hoy es día X, el primer día mostrado es
+  X + 2 días hábiles, no X + 1).
+- Se muestran los siguientes 4 días hábiles a partir de ahí, sin contar
+  fines de semana ni festivos.
+- Festivos de Colombia en tabla nueva `festivos_colombia` (`fecha` DATE
+  UNIQUE, `descripcion` VARCHAR) en `schema.sql`, en vez de hardcodeados en
+  el código — así se pueden agregar/corregir desde la base de datos sin
+  tocar código cada año. `INSERT IGNORE` inicial con los 17 festivos de
+  2026 que el usuario confirmó.
+  - **Pendiente aparte:** falta agregar el festivo "Virgen de
+    Chiquinquirá" a `festivos_colombia` — su fecha exacta está en disputa
+    entre fuentes (9 o 13 de julio). El usuario la va a verificar y pasar
+    el INSERT exacto para agregarla después; no adivinar la fecha.
+- `backend/src/services/googleCalendar.service.js`: la generación de slots
+  candidatos ahora consulta `festivos_colombia`, aplica el colchón de 1 día
+  hábil, limita a 4 días hábiles de exhibición, y usa las 2 franjas
+  horarias en vez de 9-5 corrido. No se tocó la lógica de
+  `freebusy.query`/`isSlotFree`/`createCalendarEvent` — el cruce contra
+  disponibilidad real de Google Calendar sigue igual, solo cambió el
+  universo de slots candidatos antes de cruzarlos.
+- Verificado con una base de datos descartable (creada y borrada al final;
+  no se escribió en `vsl_macondo` directamente — sí se hicieron lecturas
+  reales de solo lectura, `freebusy.query`, contra el Google Calendar real,
+  igual que en la Fase 4). Con el reloj real del sistema en lunes 17 de
+  agosto de 2026 (Bogotá), los días mostrados fueron el 19, 20, 21 y 24 de
+  agosto (se saltó el 18 como colchón de preparación y el fin de semana
+  22-23), cada uno con los horarios 10:00, 10:30, 11:00, 11:30, 14:00,
+  14:30, 15:00 y 15:30. Se probó también forzando un festivo falso sobre lo
+  que habría sido el primer día mostrado (19 de agosto): la ventana completa
+  de 4 días se corrió correctamente a 20, 21, 24 y 25 de agosto, confirmando
+  que los festivos se excluyen igual que los fines de semana tanto en el
+  colchón como en los días exhibidos.
+
 ---
 
 ## 2. Verificaciones recientes y lecciones aprendidas
@@ -443,25 +582,41 @@ vacíos (0 bytes) — nadie ha pegado contenido ahí todavía.
 
 ## 4. Próximas fases solicitadas (sin implementar, para retomar)
 
-Pedidas por el usuario el 2026-08-12 para retomar en una sesión futura —
-documentadas tal cual se pidieron, sin diseñar la implementación ni el
-alcance exacto todavía. No confundir con la sección 3 (esas sí están listas
-para construirse ya; estas necesitan más definición primero). De las 3, solo
-queda pendiente el ítem 2.
+Pedidas por el usuario para retomar en una sesión futura — documentadas tal
+cual se pidieron, sin diseñar la implementación ni el alcance exacto
+todavía salvo que se indique lo contrario. No confundir con la sección 3
+(esas sí están listas para construirse ya; estas necesitan más definición
+primero). De los 8 ítems, quedan pendientes el 4 al 8.
 
 1. **Generador de URLs con UTMs preestablecidos — completada en la Fase
    10** (ver sección 1). Página `/crm/generador-utm`, accesible para
    cualquier rol (no solo admin), con historial de URLs generadas.
-2. **Vista de detalle de lead** — al hacer clic en un lead desde la tabla
-   del CRM, ver más información y poder ir agregando datos adicionales
-   (notas de seguimiento, historial de contacto, etc.). **Alcance exacto
-   pendiente de definir.**
+2. **Vista de detalle de lead — completada en la Fase 12** (ver sección 1).
+   Página `/crm/leads/:id`: datos de contacto, empresa, origen (UTMs),
+   badges de estado y prioridad, y las 4 respuestas del quiz. Solo para
+   `leads`, no para `contactos` (eso se trabaja aparte, ver ítem 6).
 3. **Sistema de usuarios completo — completada en la Fase 9** (ver
    sección 1). Se implementó la tabla `usuarios` en MySQL con roles
    (`admin`, `vendedor`); el admin puede crear/gestionar cuentas desde
    `/crm/usuarios`. Se resolvió la pregunta que había quedado pendiente:
    **todos los roles ven y editan todos los leads sin restricción** — no
    hay leads asignados por vendedor.
+4. **Fase 14 — Notificaciones por correo + Google Chat.** No iniciada.
+   Alcance exacto (qué eventos disparan notificación, a quién, con qué
+   contenido) todavía sin definir.
+5. **Fase 15 — Cambiar el botón "Unirme por Google Meet" por "Agregar a
+   mi calendario".** No iniciada. El link de Meet actual se reemplaza por
+   un link pre-rellenado de Google Calendar. El usuario indicó que ya
+   tiene definida la solución técnica a usar, pendiente de detallar en una
+   sesión futura.
+6. **Filtro de preguntas en descalificados/contactos.** No iniciada.
+   Alcance exacto pendiente de definir.
+7. **Ajuste de UI: detalle de lead como modal.** No iniciada. Cambiar
+   `/crm/leads/:id` (Fase 12, ítem 2 de esta lista) de página completa a
+   modal sobre la tabla de leads.
+8. **Ajuste de UI: columna "Prioridad" en vez de "Origen" en la tabla de
+   leads.** No iniciada. En `/crm` (`CRM.jsx`), quitar la columna Origen
+   (`utm_source`) y mostrar `prioridad` (Fase 11) en su lugar.
 
 ---
 
@@ -490,12 +645,17 @@ Frontend usa `VITE_API_URL` (opcional, `frontend/.env` / plantilla en
 `http://localhost:3099` (ver fallback en `frontend/src/services/api.js`).
 
 ### Reglas de negocio hardcodeadas a tener en cuenta
-- Horario de atención para disponibilidad: **lunes a viernes, 9:00-17:00,
-  America/Bogota (offset fijo UTC-5), slots de 30 min, próximos 7 días
-  hábiles.** Está en `backend/src/services/googleCalendar.service.js` como
-  constantes (`BUSINESS_START_HOUR`, `BUSINESS_END_HOUR`, `SLOT_MINUTES`,
-  `BUSINESS_DAYS_AHEAD`) — si el horario real de atención cambia, se edita
-  ahí.
+- Horario de atención para disponibilidad (actualizado en la Fase 13):
+  **lunes a viernes, 10:00-12:00 y 2:00-4:00pm, America/Bogota (offset fijo
+  UTC-5), slots de 30 min.** Colchón de 1 día hábil antes de empezar a
+  ofrecer horarios, y se muestran 4 días hábiles a partir de ahí, excluyendo
+  fines de semana y los festivos de la tabla `festivos_colombia`. Está en
+  `backend/src/services/googleCalendar.service.js` como constantes
+  (`BUSINESS_WINDOWS`, `SLOT_MINUTES`, `PREP_BUSINESS_DAYS`,
+  `DISPLAY_BUSINESS_DAYS`) — si el horario real de atención cambia, se edita
+  ahí. Los festivos se editan en la tabla `festivos_colombia`, no en el
+  código (ver Fase 13 en sección 1, incluye el pendiente de agregar
+  "Virgen de Chiquinquirá").
 - `estado` de `leads` es un ENUM con 7 valores: `descalificado`,
   `calificado`, `agendado`, `con_requisitos`, `sin_requisitos_reunion`,
   `reunion_cierre`, `venta_servicio`. Los primeros 3 los pone el sistema

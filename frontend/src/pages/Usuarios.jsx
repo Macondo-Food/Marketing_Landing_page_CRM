@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { createUsuario, deleteUsuario, getUsuarios, updateUsuario } from '../services/api.js';
 import Login from './Login.jsx';
+import '../styles/crm.css';
 
 const ROLES = ['admin', 'vendedor'];
 const ROL_LABELS = { admin: 'Admin', vendedor: 'Vendedor' };
@@ -15,23 +16,23 @@ const thStyle = {
   fontWeight: 700,
   letterSpacing: '.06em',
   textTransform: 'uppercase',
-  color: '#B4B4B4',
-  borderBottom: '1px solid rgba(255,255,255,.12)',
+  color: '#6B6B6B',
+  background: '#FAFAFA',
+  borderBottom: '1px solid #E4E4E7',
 };
 
 const tdStyle = {
   padding: '12px 14px',
   fontSize: 14,
-  borderBottom: '1px solid rgba(255,255,255,.06)',
+  color: '#1F1F1F',
+  borderBottom: '1px solid #EEEEEF',
   verticalAlign: 'middle',
 };
 
 const selectStyle = {
   padding: '6px 10px',
-  borderRadius: 8,
-  border: '1px solid rgba(255,255,255,.16)',
-  background: '#0C0C0C',
-  color: '#fff',
+  borderRadius: 6,
+  border: '1px solid #DADADE',
   fontSize: 12,
 };
 
@@ -39,9 +40,9 @@ const inputStyle = {
   width: '100%',
   padding: '10px 12px',
   borderRadius: 8,
-  border: '1px solid rgba(255,255,255,.16)',
-  background: 'transparent',
-  color: '#fff',
+  border: '1px solid #DADADE',
+  background: '#fff',
+  color: '#1F1F1F',
   fontSize: 13,
   fontFamily: "'Source Sans 3', system-ui, sans-serif",
 };
@@ -53,18 +54,20 @@ const labelStyle = {
   fontSize: 11,
   fontWeight: 600,
   letterSpacing: '.04em',
-  color: '#B4B4B4',
+  color: '#6B6B6B',
 };
 
 const navLinkStyle = {
   padding: '8px 16px',
-  borderRadius: 999,
-  border: '1px solid rgba(255,255,255,.16)',
-  color: '#fff',
+  borderRadius: 6,
+  border: '1px solid #DADADE',
+  background: '#fff',
+  color: '#1F1F1F',
   textDecoration: 'none',
   fontFamily: 'Montserrat, sans-serif',
   fontWeight: 600,
   fontSize: 12,
+  boxShadow: '0 1px 2px rgba(0,0,0,.04)',
 };
 
 function NuevoUsuarioForm({ token, onCreated }) {
@@ -100,9 +103,10 @@ function NuevoUsuarioForm({ token, onCreated }) {
     <form
       onSubmit={handleSubmit}
       style={{
-        background: '#0C0C0C',
-        border: '1px solid rgba(255,255,255,.1)',
-        borderRadius: 12,
+        background: '#fff',
+        border: '1px solid #E4E4E7',
+        borderRadius: 10,
+        boxShadow: '0 1px 3px rgba(0,0,0,.04)',
         padding: '20px 22px',
         marginBottom: 24,
         display: 'grid',
@@ -113,12 +117,13 @@ function NuevoUsuarioForm({ token, onCreated }) {
     >
       <div>
         <label style={labelStyle}>Nombre</label>
-        <input style={inputStyle} value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        <input className="crm-input" style={inputStyle} value={nombre} onChange={(e) => setNombre(e.target.value)} />
       </div>
       <div>
         <label style={labelStyle}>Email</label>
         <input
           type="email"
+          className="crm-input"
           style={inputStyle}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -128,6 +133,7 @@ function NuevoUsuarioForm({ token, onCreated }) {
         <label style={labelStyle}>Password (min. 8)</label>
         <input
           type="password"
+          className="crm-input"
           style={inputStyle}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -135,7 +141,12 @@ function NuevoUsuarioForm({ token, onCreated }) {
       </div>
       <div>
         <label style={labelStyle}>Rol</label>
-        <select style={{ ...inputStyle, padding: '10px 12px' }} value={rol} onChange={(e) => setRol(e.target.value)}>
+        <select
+          className="crm-select"
+          style={{ ...inputStyle, padding: '10px 12px' }}
+          value={rol}
+          onChange={(e) => setRol(e.target.value)}
+        >
           {ROLES.map((r) => (
             <option key={r} value={r}>
               {ROL_LABELS[r]}
@@ -150,10 +161,11 @@ function NuevoUsuarioForm({ token, onCreated }) {
           style={{
             width: '100%',
             padding: '11px 20px',
-            borderRadius: 999,
+            borderRadius: 6,
             border: 'none',
-            background: status === 'loading' ? 'rgba(248,245,34,.35)' : '#F8F522',
-            color: '#000',
+            boxShadow: '0 1px 2px rgba(0,0,0,.12)',
+            background: status === 'loading' ? '#B79AB1' : '#714B67',
+            color: '#fff',
             cursor: status === 'loading' ? 'default' : 'pointer',
             fontFamily: 'Montserrat, sans-serif',
             fontWeight: 700,
@@ -166,7 +178,7 @@ function NuevoUsuarioForm({ token, onCreated }) {
         </button>
       </div>
       {status === 'error' && (
-        <p style={{ gridColumn: '1 / -1', margin: 0, fontSize: 12, color: '#FF6B6B' }}>{error}</p>
+        <p style={{ gridColumn: '1 / -1', margin: 0, fontSize: 12, color: '#DC3545' }}>{error}</p>
       )}
     </form>
   );
@@ -242,8 +254,8 @@ function UsuariosView() {
     <div
       style={{
         minHeight: '100vh',
-        background: '#000',
-        color: '#fff',
+        background: '#F9F9F9',
+        color: '#1F1F1F',
         fontFamily: "'Source Sans 3', system-ui, sans-serif",
         WebkitFontSmoothing: 'antialiased',
         padding: '32px 24px',
@@ -259,7 +271,7 @@ function UsuariosView() {
               fontWeight: 700,
               letterSpacing: '.14em',
               textTransform: 'uppercase',
-              color: '#F8F522',
+              color: '#714B67',
             }}
           >
             CRM Macondo
@@ -275,20 +287,7 @@ function UsuariosView() {
           <Link to="/crm/dashboard" style={navLinkStyle}>
             Dashboard
           </Link>
-          <button
-            onClick={logout}
-            style={{
-              padding: '8px 16px',
-              borderRadius: 999,
-              border: '1px solid rgba(255,255,255,.16)',
-              background: 'transparent',
-              color: '#fff',
-              cursor: 'pointer',
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 600,
-              fontSize: 12,
-            }}
-          >
+          <button onClick={logout} style={{ ...navLinkStyle, cursor: 'pointer' }}>
             Cerrar sesión
           </button>
         </div>
@@ -296,19 +295,20 @@ function UsuariosView() {
 
       <NuevoUsuarioForm token={token} onCreated={(nuevo) => setUsuarios((prev) => [{ ...nuevo, created_at: new Date().toISOString() }, ...prev])} />
 
-      {status === 'loading' && <p style={{ color: '#B4B4B4' }}>Cargando usuarios…</p>}
+      {status === 'loading' && <p style={{ color: '#6B6B6B' }}>Cargando usuarios…</p>}
 
       {status === 'error' && (
         <div>
-          <p style={{ color: '#FF6B6B', marginBottom: 12 }}>{error}</p>
+          <p style={{ color: '#DC3545', marginBottom: 12 }}>{error}</p>
           <button
             onClick={loadUsuarios}
             style={{
               padding: '10px 20px',
-              borderRadius: 999,
+              borderRadius: 6,
               border: 'none',
-              background: '#F8F522',
-              color: '#000',
+              boxShadow: '0 1px 2px rgba(0,0,0,.12)',
+              background: '#714B67',
+              color: '#fff',
               cursor: 'pointer',
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 700,
@@ -321,8 +321,16 @@ function UsuariosView() {
       )}
 
       {status === 'ready' && (
-        <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,.1)', borderRadius: 12 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div
+          style={{
+            overflowX: 'auto',
+            border: '1px solid #E4E4E7',
+            borderRadius: 10,
+            background: '#fff',
+            boxShadow: '0 1px 3px rgba(0,0,0,.04)',
+          }}
+        >
+          <table className="crm-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 <th style={thStyle}>Nombre</th>
@@ -337,12 +345,13 @@ function UsuariosView() {
                   <td style={tdStyle}>
                     {u.nombre}
                     {u.id === usuario?.id && (
-                      <span style={{ color: '#B4B4B4', fontSize: 11, marginLeft: 6 }}>(tú)</span>
+                      <span style={{ color: '#9A9A9A', fontSize: 11, marginLeft: 6 }}>(tú)</span>
                     )}
                   </td>
                   <td style={tdStyle}>{u.email}</td>
                   <td style={tdStyle}>
                     <select
+                      className="crm-select"
                       value={u.rol}
                       onChange={(e) => handleRolChange(u.id, e.target.value)}
                       disabled={rowBusyId === u.id}
@@ -361,10 +370,10 @@ function UsuariosView() {
                       disabled={rowBusyId === u.id}
                       style={{
                         padding: '6px 12px',
-                        borderRadius: 999,
-                        border: '1px solid rgba(255,107,107,.4)',
-                        background: 'transparent',
-                        color: '#FF6B6B',
+                        borderRadius: 6,
+                        border: '1px solid rgba(220,53,69,.4)',
+                        background: '#fff',
+                        color: '#DC3545',
                         cursor: rowBusyId === u.id ? 'default' : 'pointer',
                         fontFamily: 'Montserrat, sans-serif',
                         fontWeight: 600,
@@ -374,7 +383,7 @@ function UsuariosView() {
                       {rowBusyId === u.id ? 'Procesando…' : 'Eliminar'}
                     </button>
                     {rowErrors[u.id] && (
-                      <p style={{ margin: '4px 0 0', fontSize: 11, color: '#FF6B6B' }}>{rowErrors[u.id]}</p>
+                      <p style={{ margin: '4px 0 0', fontSize: 11, color: '#DC3545' }}>{rowErrors[u.id]}</p>
                     )}
                   </td>
                 </tr>

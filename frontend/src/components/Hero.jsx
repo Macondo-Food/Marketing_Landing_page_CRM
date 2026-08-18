@@ -1,4 +1,5 @@
 import alibabaLogo from '../assets/alibaba-logo.png';
+import alibabaLogoWebp from '../assets/alibaba-logo.webp';
 
 export default function Hero() {
   return (
@@ -96,11 +97,16 @@ export default function Hero() {
         >
           Partner de
         </span>
-        <img
-          src={alibabaLogo}
-          alt="Alibaba Cloud"
-          style={{ width: 150, height: 27, objectFit: 'contain' }}
-        />
+        <picture>
+          <source srcSet={alibabaLogoWebp} type="image/webp" />
+          <img
+            src={alibabaLogo}
+            alt="Logo de Alibaba Cloud, partner tecnológico de Macondo Softwares"
+            width={450}
+            height={79}
+            style={{ width: 150, height: 27, objectFit: 'contain' }}
+          />
+        </picture>
       </div>
     </section>
   );

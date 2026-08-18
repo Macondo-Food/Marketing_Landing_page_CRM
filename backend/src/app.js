@@ -8,6 +8,7 @@ import authRouter from './routes/auth.routes.js';
 import dashboardRouter from './routes/dashboard.routes.js';
 import usuariosRouter from './routes/usuarios.routes.js';
 import utmRouter from './routes/utm.routes.js';
+import contactosRouter from './routes/contactos.routes.js';
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use('/auth', authRouter);
 app.use('/dashboard', dashboardRouter);
 app.use('/usuarios', usuariosRouter);
 app.use('/utm-urls', utmRouter);
+app.use('/contactos', contactosRouter);
 
 const PORT = process.env.PORT || 3001;
 

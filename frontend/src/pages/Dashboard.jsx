@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getDashboard } from '../services/api.js';
 import Login from './Login.jsx';
+import '../styles/crm.css';
 
 // Mismo orden y texto que las preguntas del quiz (QuizPopup.jsx).
 const QUESTION_ORDER = ['inversion_nube', 'proveedor_nube', 'cargo', 'industria'];
@@ -14,9 +15,10 @@ const QUESTION_LABELS = {
 };
 
 const cardStyle = {
-  background: '#0C0C0C',
-  border: '1px solid rgba(255,255,255,.1)',
-  borderRadius: 12,
+  background: '#fff',
+  border: '1px solid #E4E4E7',
+  borderRadius: 10,
+  boxShadow: '0 1px 3px rgba(0,0,0,.04)',
   padding: '20px 22px',
 };
 
@@ -27,14 +29,27 @@ const eyebrowStyle = {
   fontWeight: 700,
   letterSpacing: '.1em',
   textTransform: 'uppercase',
-  color: '#B4B4B4',
+  color: '#6B6B6B',
+};
+
+const navLinkStyle = {
+  padding: '8px 16px',
+  borderRadius: 6,
+  border: '1px solid #DADADE',
+  background: '#fff',
+  color: '#1F1F1F',
+  textDecoration: 'none',
+  fontFamily: 'Montserrat, sans-serif',
+  fontWeight: 600,
+  fontSize: 12,
+  boxShadow: '0 1px 2px rgba(0,0,0,.04)',
 };
 
 function StatTile({ label, value }) {
   return (
     <div style={cardStyle}>
       <p style={eyebrowStyle}>{label}</p>
-      <p style={{ margin: 0, fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: 30 }}>
+      <p style={{ margin: 0, fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: 30, color: '#1F1F1F' }}>
         {value}
       </p>
     </div>
@@ -51,11 +66,11 @@ function AnswerBar({ respuesta, total, porcentaje }) {
           gap: 12,
           marginBottom: 6,
           fontSize: 13,
-          color: '#fff',
+          color: '#1F1F1F',
         }}
       >
         <span>{respuesta}</span>
-        <span style={{ color: '#B4B4B4', whiteSpace: 'nowrap' }}>
+        <span style={{ color: '#6B6B6B', whiteSpace: 'nowrap' }}>
           {porcentaje}% &middot; {total}
         </span>
       </div>
@@ -63,7 +78,7 @@ function AnswerBar({ respuesta, total, porcentaje }) {
         style={{
           height: 10,
           borderRadius: 999,
-          background: 'rgba(255,255,255,.08)',
+          background: '#F0F0F1',
           overflow: 'hidden',
         }}
       >
@@ -73,7 +88,7 @@ function AnswerBar({ respuesta, total, porcentaje }) {
             width: `${porcentaje}%`,
             minWidth: porcentaje > 0 ? 4 : 0,
             borderRadius: 999,
-            background: '#F8F522',
+            background: '#714B67',
           }}
         />
       </div>
@@ -91,6 +106,7 @@ function QuestionCard({ pregunta, answers }) {
           fontWeight: 700,
           fontSize: 15,
           lineHeight: 1.4,
+          color: '#1F1F1F',
         }}
       >
         {QUESTION_LABELS[pregunta] ?? pregunta}
@@ -134,8 +150,8 @@ function DashboardView() {
     <div
       style={{
         minHeight: '100vh',
-        background: '#000',
-        color: '#fff',
+        background: '#F9F9F9',
+        color: '#1F1F1F',
         fontFamily: "'Source Sans 3', system-ui, sans-serif",
         WebkitFontSmoothing: 'antialiased',
         padding: '32px 24px',
@@ -151,7 +167,7 @@ function DashboardView() {
               fontWeight: 700,
               letterSpacing: '.14em',
               textTransform: 'uppercase',
-              color: '#F8F522',
+              color: '#714B67',
             }}
           >
             CRM Macondo
@@ -161,53 +177,29 @@ function DashboardView() {
           </h1>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <Link
-            to="/crm"
-            style={{
-              padding: '8px 16px',
-              borderRadius: 999,
-              border: '1px solid rgba(255,255,255,.16)',
-              color: '#fff',
-              textDecoration: 'none',
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 600,
-              fontSize: 12,
-            }}
-          >
+          <Link to="/crm" style={navLinkStyle}>
             Ver leads
           </Link>
-          <button
-            onClick={logout}
-            style={{
-              padding: '8px 16px',
-              borderRadius: 999,
-              border: '1px solid rgba(255,255,255,.16)',
-              background: 'transparent',
-              color: '#fff',
-              cursor: 'pointer',
-              fontFamily: 'Montserrat, sans-serif',
-              fontWeight: 600,
-              fontSize: 12,
-            }}
-          >
+          <button onClick={logout} style={{ ...navLinkStyle, cursor: 'pointer' }}>
             Cerrar sesión
           </button>
         </div>
       </div>
 
-      {status === 'loading' && <p style={{ color: '#B4B4B4' }}>Cargando dashboard…</p>}
+      {status === 'loading' && <p style={{ color: '#6B6B6B' }}>Cargando dashboard…</p>}
 
       {status === 'error' && (
         <div>
-          <p style={{ color: '#FF6B6B', marginBottom: 12 }}>{error}</p>
+          <p style={{ color: '#DC3545', marginBottom: 12 }}>{error}</p>
           <button
             onClick={load}
             style={{
               padding: '10px 20px',
-              borderRadius: 999,
+              borderRadius: 6,
               border: 'none',
-              background: '#F8F522',
-              color: '#000',
+              boxShadow: '0 1px 2px rgba(0,0,0,.12)',
+              background: '#714B67',
+              color: '#fff',
               cursor: 'pointer',
               fontFamily: 'Montserrat, sans-serif',
               fontWeight: 700,
@@ -235,7 +227,7 @@ function DashboardView() {
           </div>
 
           {data.resumen.totalLeads === 0 ? (
-            <p style={{ color: '#B4B4B4' }}>Todavía no hay leads registrados.</p>
+            <p style={{ color: '#6B6B6B' }}>Todavía no hay leads registrados.</p>
           ) : (
             <div
               style={{

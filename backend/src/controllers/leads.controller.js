@@ -4,7 +4,15 @@ import { evaluateQualification } from '../services/qualification.service.js';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function createLead(req, res) {
-  const { nombre, email, telefono, utms = {}, respuestas } = req.body ?? {};
+  const {
+    nombre,
+    email,
+    telefono,
+    empresa,
+    tratamiento_datos_aceptado: tratamientoDatosAceptado,
+    utms = {},
+    respuestas,
+  } = req.body ?? {};
 
   if (typeof nombre !== 'string' || !nombre.trim()) {
     return res.status(400).json({ error: 'nombre es requerido' });
@@ -15,13 +23,54 @@ export async function createLead(req, res) {
   if (typeof telefono !== 'string' || !telefono.trim()) {
     return res.status(400).json({ error: 'telefono es requerido' });
   }
+  if (typeof empresa !== 'string' || !empresa.trim()) {
+    return res.status(400).json({ error: 'empresa es requerida' });
+  }
+  if (tratamientoDatosAceptado !== true) {
+    return res.status(400).json({ error: 'Debes aceptar el tratamiento de datos personales' });
+  }
 
   let calificado;
+  let prioridad;
+  let motivoDescalificacion;
   let respuestasEvaluadas;
   try {
-    ({ calificado, respuestas: respuestasEvaluadas } = evaluateQualification(respuestas));
+    ({
+      calificado,
+      prioridad,
+      motivoDescalificacion,
+      respuestas: respuestasEvaluadas,
+    } = evaluateQualification(respuestas));
   } catch (err) {
     return res.status(400).json({ error: err.message });
+  }
+
+  const datosContacto = [
+    nombre.trim(),
+    email.trim(),
+    telefono.trim(),
+    empresa.trim(),
+    utms.utm_source ?? null,
+    utms.utm_medium ?? null,
+    utms.utm_campaign ?? null,
+    utms.utm_content ?? null,
+  ];
+  const tratamientoDatosFecha = new Date();
+
+  if (!calificado) {
+    try {
+      const [result] = await pool.execute(
+        `INSERT INTO contactos
+          (nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content,
+           motivo_descalificacion, tratamiento_datos_aceptado, tratamiento_datos_fecha)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [...datosContacto, motivoDescalificacion, true, tratamientoDatosFecha]
+      );
+      return res.status(201).json({ calificado: false, contactoId: result.insertId });
+    } catch (err) {
+      console.error('[leads] error al crear contacto:', err);
+      return res.status(500).json({ error: 'Error al guardar el contacto' });
+    }
   }
 
   let connection;
@@ -31,19 +80,17 @@ export async function createLead(req, res) {
 
     const [leadResult] = await connection.execute(
       `INSERT INTO leads
-        (nombre, email, telefono, utm_source, utm_medium, utm_campaign, utm_content, calificado, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content,
+         calificado, prioridad, tratamiento_datos_aceptado, tratamiento_datos_fecha, estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        nombre.trim(),
-        email.trim(),
-        telefono.trim(),
-        utms.utm_source ?? null,
-        utms.utm_medium ?? null,
-        utms.utm_campaign ?? null,
-        utms.utm_content ?? null,
-        calificado,
+        ...datosContacto,
+        true,
+        prioridad,
+        true,
+        tratamientoDatosFecha,
         // 'agendado' solo se asigna al crear el evento de Calendar (Fase 4).
-        calificado ? 'calificado' : 'descalificado',
+        'calificado',
       ]
     );
 
@@ -57,7 +104,7 @@ export async function createLead(req, res) {
     }
 
     await connection.commit();
-    res.status(201).json({ calificado, leadId });
+    res.status(201).json({ calificado, prioridad, leadId });
   } catch (err) {
     if (connection) await connection.rollback();
     console.error('[leads] error al crear lead:', err);
@@ -96,6 +143,36 @@ export async function updateEstado(req, res) {
   } catch (err) {
     console.error('[leads] error al actualizar estado:', err);
     res.status(500).json({ error: 'Error al actualizar el estado' });
+  }
+}
+
+export async function getLeadDetalle(req, res) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'id inválido' });
+  }
+
+  try {
+    const [leadRows] = await pool.execute(
+      `SELECT id, nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content,
+              calificado, prioridad, estado, calendar_event_id, created_at
+       FROM leads
+       WHERE id = ?`,
+      [id]
+    );
+    if (leadRows.length === 0) {
+      return res.status(404).json({ error: 'Lead no encontrado' });
+    }
+
+    const [respuestas] = await pool.execute(
+      `SELECT pregunta, respuesta FROM respuestas_quiz WHERE lead_id = ? ORDER BY id`,
+      [id]
+    );
+
+    res.json({ ...leadRows[0], respuestas });
+  } catch (err) {
+    console.error('[leads] error al obtener detalle de lead:', err);
+    res.status(500).json({ error: 'Error al obtener el lead' });
   }
 }
 

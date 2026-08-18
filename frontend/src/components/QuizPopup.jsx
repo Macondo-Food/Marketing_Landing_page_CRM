@@ -24,7 +24,9 @@ const QUIZ_QUESTIONS = [
       { value: 'Oracle Cloud (OCI)', descalifica: false },
       { value: 'Microsoft Azure', descalifica: false },
       { value: 'Google Cloud Platform (GCP)', descalifica: false },
-      { value: 'Hosting tradicional / económico (DigitalOcean, Hetzner, cPanel, etc.)', descalifica: true },
+      { value: 'IBM Cloud', descalifica: false },
+      { value: 'Huawei Cloud', descalifica: false },
+      { value: 'Otros proveedores / Hosting tradicional', descalifica: true, requiresDetail: true },
     ],
   },
   {
@@ -42,10 +44,11 @@ const QUIZ_QUESTIONS = [
     id: 'industria',
     question: '¿Cuál es tu sector / industria?',
     options: [
-      { value: 'Desarrollo de Software / SaaS / Plataformas Digitales', descalifica: false },
-      { value: 'BPO / Contact Center / Servicios de TI', descalifica: false },
-      { value: 'FinTech / E-commerce de alto tráfico / AdTech', descalifica: false },
-      { value: 'Empresa tradicional / Comercio físico / Servicios no tecnológicos', descalifica: true },
+      { value: 'Software / SaaS / Plataformas Digitales', descalifica: false },
+      { value: 'Servicios de TI / BPO / Contact Centers', descalifica: false },
+      { value: 'FinTech / E-commerce / AdTech', descalifica: false },
+      { value: 'Comercio / Retail / Servicios Tradicionales', descalifica: true },
+      { value: 'Otro sector', descalifica: false },
     ],
   },
 ];
@@ -114,15 +117,26 @@ function validateContact(contact) {
     errors.email = 'Ingresa un email válido.';
   }
   if (!contact.telefono.trim()) errors.telefono = 'Ingresa tu teléfono.';
+  if (!contact.empresa.trim()) errors.empresa = 'Ingresa el nombre de tu empresa.';
+  if (!contact.tratamientoDatosAceptado) {
+    errors.tratamientoDatosAceptado = 'Debes aceptar el tratamiento de tus datos personales.';
+  }
   return errors;
 }
 
 export default function QuizPopup({ onClose }) {
   const [step, setStep] = useState(CONTACT_STEP);
-  const [contact, setContact] = useState({ nombre: '', email: '', telefono: '' });
+  const [contact, setContact] = useState({
+    nombre: '',
+    email: '',
+    telefono: '',
+    empresa: '',
+    tratamientoDatosAceptado: false,
+  });
   const [contactErrors, setContactErrors] = useState({});
   const [answers, setAnswers] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [detailText, setDetailText] = useState('');
   const [submitStatus, setSubmitStatus] = useState('idle'); // idle | loading | error | done
   const [submitError, setSubmitError] = useState('');
   const [leadId, setLeadId] = useState(null);
@@ -155,9 +169,11 @@ export default function QuizPopup({ onClose }) {
       nombre: contact.nombre.trim(),
       email: contact.email.trim(),
       telefono: contact.telefono.trim(),
+      empresa: contact.empresa.trim(),
+      tratamiento_datos_aceptado: contact.tratamientoDatosAceptado === true,
       utms: getStoredUtms(),
       calificado,
-      respuestas: answers, // [{ pregunta, respuesta, descalifica }, ...]
+      respuestas: answers, // [{ pregunta, respuesta, descalifica, detalle? }, ...]
     };
 
     setSubmitStatus('loading');
@@ -195,22 +211,34 @@ export default function QuizPopup({ onClose }) {
 
   function handleSelect(index) {
     setSelected(index);
+    setDetailText('');
   }
 
+  const selectedOption = selected !== null ? currentQuestion?.options[selected] : null;
+  const needsDetail = Boolean(selectedOption?.requiresDetail);
+  const canAdvance = selected !== null && (!needsDetail || detailText.trim());
+
   function handleNext() {
-    if (selected === null) return;
+    if (!canAdvance) return;
     const option = currentQuestion.options[selected];
     setAnswers([
       ...answers,
-      { pregunta: currentQuestion.id, respuesta: option.value, descalifica: option.descalifica },
+      {
+        pregunta: currentQuestion.id,
+        respuesta: option.value,
+        descalifica: option.descalifica,
+        detalle: option.requiresDetail ? detailText.trim() : null,
+      },
     ]);
     setSelected(null);
+    setDetailText('');
     setStep(step + 1);
   }
 
   function handleBack() {
     if (step === 1) {
       setSelected(null);
+      setDetailText('');
       setStep(CONTACT_STEP);
       return;
     }
@@ -220,6 +248,7 @@ export default function QuizPopup({ onClose }) {
     const prevIndex = prevQuestion.options.findIndex((o) => o.value === prevAnswer.respuesta);
     setAnswers(answers.slice(0, -1));
     setSelected(prevIndex);
+    setDetailText(prevAnswer.detalle || '');
     setStep(step - 1);
   }
 
@@ -321,6 +350,35 @@ export default function QuizPopup({ onClose }) {
                 />
                 {contactErrors.telefono && <p style={errorTextStyle}>{contactErrors.telefono}</p>}
               </div>
+
+              <div>
+                <label style={labelStyle}>Empresa</label>
+                <input
+                  type="text"
+                  value={contact.empresa}
+                  onChange={(e) => handleContactChange('empresa', e.target.value)}
+                  placeholder="Nombre de tu empresa"
+                  style={getInputStyle(Boolean(contactErrors.empresa))}
+                />
+                {contactErrors.empresa && <p style={errorTextStyle}>{contactErrors.empresa}</p>}
+              </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={contact.tratamientoDatosAceptado}
+                    onChange={(e) => handleContactChange('tratamientoDatosAceptado', e.target.checked)}
+                    style={{ marginTop: 3, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 13, lineHeight: 1.5, color: '#B4B4B4' }}>
+                    Acepto el tratamiento de mis datos personales según la política de privacidad.
+                  </span>
+                </label>
+                {contactErrors.tratamientoDatosAceptado && (
+                  <p style={errorTextStyle}>{contactErrors.tratamientoDatosAceptado}</p>
+                )}
+              </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -389,6 +447,19 @@ export default function QuizPopup({ onClose }) {
               ))}
             </div>
 
+            {needsDetail && (
+              <div style={{ marginBottom: 26, marginTop: -14 }}>
+                <label style={labelStyle}>¿Cuál proveedor usas?</label>
+                <input
+                  type="text"
+                  value={detailText}
+                  onChange={(e) => setDetailText(e.target.value)}
+                  placeholder="Escribe el nombre del proveedor"
+                  style={getInputStyle(false)}
+                />
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
               <button
                 onClick={handleBack}
@@ -408,11 +479,11 @@ export default function QuizPopup({ onClose }) {
               </button>
               <button
                 onClick={handleNext}
-                disabled={selected === null}
+                disabled={!canAdvance}
                 style={{
                   ...primaryButtonStyle,
-                  background: selected === null ? 'rgba(248,245,34,.35)' : '#F8F522',
-                  cursor: selected === null ? 'default' : 'pointer',
+                  background: canAdvance ? '#F8F522' : 'rgba(248,245,34,.35)',
+                  cursor: canAdvance ? 'pointer' : 'default',
                 }}
               >
                 {step === QUIZ_QUESTIONS.length ? 'Ver resultado' : 'Siguiente'}
