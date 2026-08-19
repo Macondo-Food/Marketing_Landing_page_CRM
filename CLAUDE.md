@@ -1,6 +1,6 @@
 # Bitácora de estado — Proyecto VSL Macondo
 
-Última actualización: 2026-08-17.
+Última actualización: 2026-08-19.
 
 Este archivo es un resumen del estado real del código para retomar el trabajo
 sin tener que releer toda la conversación. La fuente de verdad del **diseño
@@ -524,6 +524,64 @@ medias**.
   que los festivos se excluyen igual que los fines de semana tanto en el
   colchón como en los días exhibidos.
 
+### Fase 16 — Corrección de calificación (documento del PM) + utm_term + webhook al CRM externo
+
+- Corrección crítica de `qualification.service.js` según el documento
+  "Especificaciones Técnicas" del PM: a partir de esta fase SOLO
+  presupuesto (`inversion_nube`) y cargo (`cargo`) pueden descalificar un
+  lead. Proveedor de nube (`proveedor_nube`) e industria (`industria`) ya
+  NO descalifican bajo ninguna opción — antes de esta fase, "Otros
+  proveedores / Hosting tradicional" y "Comercio / Retail / Servicios
+  Tradicionales" sí descalificaban; eso era el bug que corrige esta fase.
+  Se agregó "Otro rol dentro de la empresa" a la pregunta de cargo (no
+  descalifica, no afecta prioridad). Frontend (`QuizPopup.jsx`) y backend
+  quedaron verificados línea por línea como coincidentes durante la
+  auditoría de código de esta fase (ver `ESTADO_ACTUAL.md`).
+- Prioridad de leads calificados pasa de 3 a 4 niveles: `vip`, `alta`,
+  `media_baja`, `en_revision` (antes: `alta`, `media_alta`,
+  `en_revision`). Presupuesto "Más de $10,000 USD/mes" siempre asigna
+  `vip`, sin importar la industria — gana sobre cualquier prioridad de
+  industria. `schema.sql` documenta la migración del ENUM en 3 pasos
+  (ampliar, migrar filas `media_alta` → `alta`, angostar) para no perder
+  datos en `vsl_macondo` — **sigue sin confirmarse si ya se corrió contra
+  la base real**, ver sección 6.
+- Cada opción de cada pregunta ahora trae un `codigo` en inglés fijo
+  (p.ej. `TECH_LEAD`, `SOFTWARE_SAAS`) usado por el webhook — vive en la
+  misma fuente de verdad que decide `descalifica`/`prioridad`
+  (`qualification.service.js`), no en una tabla de mapeo aparte.
+- `utm_term` agregado de punta a punta: captura en la landing
+  (`frontend/src/utils/utm.js`), formulario y `POST /utm-urls` del
+  generador de UTMs (`GeneradorUTM.jsx` + `utm.controller.js`), y
+  columnas nuevas en `leads`, `contactos` y `utm_urls` (`schema.sql`, con
+  el `ALTER TABLE` de migración para bases de datos existentes).
+- `backend/src/services/webhook.service.js` (nuevo): arma el JSON exacto
+  del documento del PM para el CRM externo (`event`, `form_id`,
+  `contact`, `qualification_data` con los códigos en inglés,
+  `qualification_status`, `priority_tier`, `attribution` con las 5
+  UTMs), leyendo los `codigo` ya calculados por `qualification.service.js`.
+  Conectado en `leads.controller.js` en ambas ramas de `POST /leads`
+  (lead calificado y contacto descalificado) — fire-and-forget, nunca
+  lanza ni bloquea la respuesta al cliente.
+  - **El webhook NO necesita una URL real configurada por ahora.** El PM
+    confirmó que el JSON del documento de Especificaciones Técnicas era
+    solo un ejemplo del formato esperado, no una integración pendiente de
+    conectar contra un CRM externo real. Mientras `WEBHOOK_CRM_URL` quede
+    vacía en `.env`, el sistema simplemente hace `console.log` del
+    payload que se habría enviado — ese es el comportamiento esperado
+    hoy, no un pendiente sin resolver.
+- Verificado en esta fase con dos casos de prueba (invocando
+  `evaluateQualification` + `enviarWebhookLead` reales, sin
+  `WEBHOOK_CRM_URL` configurada): un lead que califica con prioridad alta
+  y uno que descalifica por presupuesto + cargo, ambos armando el JSON
+  esperado.
+- **Cerrada y commiteada** el 2026-08-19 (commit `7dc73be`), junto con
+  `ESTADO_ACTUAL.md`: auditoría completa del estado real del código,
+  hecha leyendo cada archivo del backend y frontend en vez de confiar en
+  esta bitácora — ver ese archivo para el detalle completo de qué está
+  verificado, a medias, bloqueado o sin confirmar. La sección 6 de esta
+  bitácora resume los hallazgos de esa auditoría que no estaban
+  reflejados aquí todavía.
+
 ---
 
 ## 2. Verificaciones recientes y lecciones aprendidas
@@ -603,7 +661,10 @@ primero). De los 8 ítems, quedan pendientes el 4 al 8.
    hay leads asignados por vendedor.
 4. **Fase 14 — Notificaciones por correo + Google Chat.** No iniciada.
    Alcance exacto (qué eventos disparan notificación, a quién, con qué
-   contenido) todavía sin definir.
+   contenido) todavía sin definir. No confundir con el webhook al CRM
+   externo de la Fase 16 (sección 1) — ese ya está completo y no
+   necesita URL real por ahora; esta Fase 14 es aparte (correo + Google
+   Chat) y sigue sin ningún código escrito.
 5. **Fase 15 — Cambiar el botón "Unirme por Google Meet" por "Agregar a
    mi calendario".** No iniciada. El link de Meet actual se reemplaza por
    un link pre-rellenado de Google Calendar. El usuario indicó que ya
@@ -639,6 +700,7 @@ primero). De los 8 ítems, quedan pendientes el 4 al 8.
 | `ADMIN_PASSWORD` | configurada | ídem: solo la usa `seed-admin.mjs`, como password de ese primer admin |
 | `JWT_SECRET` | configurada | firma los JWT de sesión del CRM (expiran a las 8h) |
 | `ALLOWED_ORIGINS` | no configurada (opcional) | orígenes permitidos por CORS, separados por coma; si se omite cae a `http://localhost:5173` (Fase 8) |
+| `WEBHOOK_CRM_URL` | no configurada (opcional, intencional) | webhook al CRM externo (Fase 16) — el PM confirmó que el JSON del documento era solo un ejemplo de formato, no una integración pendiente; mientras esté vacía, `POST /leads` solo hace `console.log` del payload, y ese es el comportamiento esperado por ahora, no un pendiente |
 
 Frontend usa `VITE_API_URL` (opcional, `frontend/.env` / plantilla en
 `frontend/.env.example`) para apuntar al backend; si no está definida, cae a
@@ -691,3 +753,37 @@ Frontend usa `VITE_API_URL` (opcional, `frontend/.env` / plantilla en
   corriendo en segundo plano al cierre de cada fase.
 - Frontend: sin puerto fijo, Vite por defecto (`5173`, o el siguiente libre
   si está ocupado).
+
+---
+
+## 6. Deuda técnica y decisiones sin confirmar
+
+Hallazgos de la auditoría de código completa hecha el 2026-08-19
+(`ESTADO_ACTUAL.md`: se leyó cada archivo del backend y frontend en vez de
+confiar en esta bitácora) que no estaban reflejados aquí todavía. Ver ese
+archivo para el detalle completo de qué está verificado, a medias,
+bloqueado por terceros o sin empezar.
+
+- **Nombres de campo del webhook sin confirmar por el PM.**
+  `WEBHOOK_FORM_ID = 'quiz_vsl_macondo'` (constante en
+  `leads.controller.js`) y los nombres `priority_tier` (mapeo interno
+  `vip/alta/media_baja/en_revision` → `TIER_1/TIER_2/TIER_3/
+  TIER_REVIEW` en `webhook.service.js`) y
+  `current_cloud_provider_other` son elecciones razonables por analogía,
+  no valores literales confirmados por el documento del PM. Esto ya no
+  es un pendiente de integración (el webhook no necesita URL real por
+  ahora, ver Fase 16 en sección 1), pero si en el futuro sí se conecta
+  contra un CRM externo real, vale la pena confirmar estos tres nombres
+  antes de que ese CRM dependa de leerlos.
+- **El `detalle` libre de "Otros proveedores / Hosting tradicional" no se
+  persiste cuando el lead califica.** Viaja en el payload del webhook,
+  pero `respuestas_quiz` no tiene columna `detalle` (solo `pregunta`,
+  `respuesta`, `descalifica`) — para un lead calificado, ese texto no
+  queda guardado en ningún lado de la base de datos. Cuando el lead
+  descalifica sí se preserva, dentro de `motivo_descalificacion` (tabla
+  `contactos`).
+- **`utm_term` no se muestra en `/crm/leads/:id`.** Se captura, se guarda
+  en las 3 tablas (`leads`, `contactos`, `utm_urls`) y se usa en el
+  webhook (Fase 16), pero la tarjeta "Origen" de `LeadDetalle.jsx`
+  todavía solo muestra `utm_source`, `utm_medium`, `utm_campaign` y
+  `utm_content` — falta agregar el campo (cambio de una línea).
