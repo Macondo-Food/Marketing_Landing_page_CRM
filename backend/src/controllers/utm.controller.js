@@ -25,7 +25,7 @@ export async function listUtmUrls(req, res) {
   try {
     const [rows] = await pool.execute(
       `SELECT u.id, u.url_completa, u.utm_source, u.utm_medium, u.utm_campaign,
-              u.utm_content, u.created_at, us.nombre AS creado_por_nombre
+              u.utm_content, u.utm_term, u.created_at, us.nombre AS creado_por_nombre
        FROM utm_urls u
        JOIN usuarios us ON us.id = u.creado_por
        ORDER BY u.created_at DESC, u.id DESC`
@@ -38,7 +38,12 @@ export async function listUtmUrls(req, res) {
 }
 
 export async function createUtmUrl(req, res) {
-  const { utm_source: utmSource, utm_campaign: utmCampaign, utm_content: utmContent } = req.body ?? {};
+  const {
+    utm_source: utmSource,
+    utm_campaign: utmCampaign,
+    utm_content: utmContent,
+    utm_term: utmTerm,
+  } = req.body ?? {};
 
   if (!SOURCES.includes(utmSource)) {
     return res.status(400).json({ error: `utm_source debe ser uno de: ${SOURCES.join(', ')}` });
@@ -49,10 +54,14 @@ export async function createUtmUrl(req, res) {
   if (utmContent !== undefined && utmContent !== null && typeof utmContent !== 'string') {
     return res.status(400).json({ error: 'utm_content debe ser texto' });
   }
+  if (utmTerm !== undefined && utmTerm !== null && typeof utmTerm !== 'string') {
+    return res.status(400).json({ error: 'utm_term debe ser texto' });
+  }
 
   const utmMedium = MEDIUM_BY_SOURCE[utmSource];
   const campaign = utmCampaign.trim();
   const content = typeof utmContent === 'string' ? utmContent.trim() : '';
+  const term = typeof utmTerm === 'string' ? utmTerm.trim() : '';
 
   const params = new URLSearchParams({
     utm_source: utmSource,
@@ -60,13 +69,14 @@ export async function createUtmUrl(req, res) {
     utm_campaign: campaign,
   });
   if (content) params.set('utm_content', content);
+  if (term) params.set('utm_term', term);
   const urlCompleta = `${BASE_URL}?${params.toString()}`;
 
   try {
     const [result] = await pool.execute(
-      `INSERT INTO utm_urls (url_completa, utm_source, utm_medium, utm_campaign, utm_content, creado_por)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [urlCompleta, utmSource, utmMedium, campaign, content || null, req.user.userId]
+      `INSERT INTO utm_urls (url_completa, utm_source, utm_medium, utm_campaign, utm_content, utm_term, creado_por)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [urlCompleta, utmSource, utmMedium, campaign, content || null, term || null, req.user.userId]
     );
 
     res.status(201).json({
@@ -76,6 +86,7 @@ export async function createUtmUrl(req, res) {
       utm_medium: utmMedium,
       utm_campaign: campaign,
       utm_content: content || null,
+      utm_term: term || null,
       creado_por_nombre: req.user.nombre,
     });
   } catch (err) {

@@ -125,6 +125,7 @@ function GeneradorUTMView() {
   const [plataforma, setPlataforma] = useState(PLATAFORMAS[0].value);
   const [campana, setCampana] = useState('');
   const [contenido, setContenido] = useState('');
+  const [termino, setTermino] = useState('');
   const [generando, setGenerando] = useState(false);
   const [formError, setFormError] = useState('');
   const [ultimaUrl, setUltimaUrl] = useState(null);
@@ -166,12 +167,14 @@ function GeneradorUTMView() {
       utm_source: plataforma,
       utm_campaign: campana.trim(),
       utm_content: contenido.trim() || undefined,
+      utm_term: termino.trim() || undefined,
     })
       .then((nueva) => {
         setUltimaUrl(nueva.url_completa);
         setHistorial((prev) => [{ ...nueva, created_at: new Date().toISOString() }, ...prev]);
         setCampana('');
         setContenido('');
+        setTermino('');
       })
       .catch((err) => {
         if (err.status === 401) {
@@ -263,6 +266,10 @@ function GeneradorUTMView() {
         <div>
           <label style={labelStyle}>Content / variante (opcional)</label>
           <input className="crm-input" style={inputStyle} value={contenido} onChange={(e) => setContenido(e.target.value)} />
+        </div>
+        <div>
+          <label style={labelStyle}>Term / palabra clave (opcional)</label>
+          <input className="crm-input" style={inputStyle} value={termino} onChange={(e) => setTermino(e.target.value)} />
         </div>
         <div>
           <button

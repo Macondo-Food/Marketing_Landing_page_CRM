@@ -1,7 +1,12 @@
 import pool from '../db/connection.js';
 import { evaluateQualification } from '../services/qualification.service.js';
+import { enviarWebhookLead } from '../services/webhook.service.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Identificador del formulario para el CRM externo (documento "Especificaciones
+// Técnicas" del PM). Único formulario en el proyecto, así que es una constante.
+const WEBHOOK_FORM_ID = 'quiz_vsl_macondo';
 
 export async function createLead(req, res) {
   const {
@@ -54,18 +59,33 @@ export async function createLead(req, res) {
     utms.utm_medium ?? null,
     utms.utm_campaign ?? null,
     utms.utm_content ?? null,
+    utms.utm_term ?? null,
   ];
   const tratamientoDatosFecha = new Date();
+  const contactoWebhook = {
+    nombre: nombre.trim(),
+    email: email.trim(),
+    telefono: telefono.trim(),
+    empresa: empresa.trim(),
+  };
 
   if (!calificado) {
     try {
       const [result] = await pool.execute(
         `INSERT INTO contactos
-          (nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content,
+          (nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
            motivo_descalificacion, tratamiento_datos_aceptado, tratamiento_datos_fecha)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [...datosContacto, motivoDescalificacion, true, tratamientoDatosFecha]
       );
+      enviarWebhookLead({
+        formId: WEBHOOK_FORM_ID,
+        contact: contactoWebhook,
+        respuestas: respuestasEvaluadas,
+        calificado: false,
+        prioridad: null,
+        utms,
+      });
       return res.status(201).json({ calificado: false, contactoId: result.insertId });
     } catch (err) {
       console.error('[leads] error al crear contacto:', err);
@@ -80,9 +100,9 @@ export async function createLead(req, res) {
 
     const [leadResult] = await connection.execute(
       `INSERT INTO leads
-        (nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content,
+        (nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
          calificado, prioridad, tratamiento_datos_aceptado, tratamiento_datos_fecha, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         ...datosContacto,
         true,
@@ -104,6 +124,14 @@ export async function createLead(req, res) {
     }
 
     await connection.commit();
+    enviarWebhookLead({
+      formId: WEBHOOK_FORM_ID,
+      contact: contactoWebhook,
+      respuestas: respuestasEvaluadas,
+      calificado,
+      prioridad,
+      utms,
+    });
     res.status(201).json({ calificado, prioridad, leadId });
   } catch (err) {
     if (connection) await connection.rollback();
@@ -154,7 +182,7 @@ export async function getLeadDetalle(req, res) {
 
   try {
     const [leadRows] = await pool.execute(
-      `SELECT id, nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content,
+      `SELECT id, nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
               calificado, prioridad, estado, calendar_event_id, created_at
        FROM leads
        WHERE id = ?`,
@@ -179,7 +207,7 @@ export async function getLeadDetalle(req, res) {
 export async function listLeads(req, res) {
   try {
     const [rows] = await pool.execute(
-      `SELECT id, nombre, email, telefono, utm_source, utm_medium, utm_campaign, utm_content,
+      `SELECT id, nombre, email, telefono, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
               calificado, estado, calendar_event_id, created_at
        FROM leads
        ORDER BY created_at DESC`

@@ -138,7 +138,7 @@ export function getUtmUrls(token) {
   });
 }
 
-// (token, { utm_source, utm_campaign, utm_content }) -> { id, url_completa, utm_source, utm_medium, utm_campaign, utm_content, creado_por_nombre }
+// (token, { utm_source, utm_campaign, utm_content, utm_term }) -> { id, url_completa, utm_source, utm_medium, utm_campaign, utm_content, utm_term, creado_por_nombre }
 export function createUtmUrl(token, payload) {
   return request('/utm-urls', {
     method: 'POST',

@@ -25,14 +25,16 @@ const ESTADO_COLORS = {
 };
 
 const PRIORIDAD_LABELS = {
+  vip: 'VIP',
   alta: 'Alta',
-  media_alta: 'Media-alta',
+  media_baja: 'Media-baja',
   en_revision: 'En revisión',
 };
 
 const PRIORIDAD_COLORS = {
+  vip: { bg: 'rgba(111,66,193,.15)', text: '#6F42C1' },
   alta: { bg: 'rgba(220,53,69,.12)', text: '#DC3545' },
-  media_alta: { bg: 'rgba(217,164,6,.15)', text: '#9A7B0A' },
+  media_baja: { bg: 'rgba(217,164,6,.15)', text: '#9A7B0A' },
   en_revision: { bg: 'rgba(107,107,107,.12)', text: '#6B6B6B' },
 };
 

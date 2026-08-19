@@ -16,8 +16,9 @@ CREATE TABLE IF NOT EXISTS leads (
   utm_medium VARCHAR(100) NULL,
   utm_campaign VARCHAR(150) NULL,
   utm_content VARCHAR(150) NULL,
+  utm_term VARCHAR(150) NULL,
   calificado BOOLEAN NOT NULL,
-  prioridad ENUM('alta', 'media_alta', 'en_revision') NOT NULL,
+  prioridad ENUM('vip', 'alta', 'media_baja', 'en_revision') NOT NULL,
   tratamiento_datos_aceptado BOOLEAN NOT NULL DEFAULT FALSE,
   tratamiento_datos_fecha DATETIME NULL,
   estado ENUM(
@@ -58,6 +59,7 @@ CREATE TABLE IF NOT EXISTS contactos (
   utm_medium VARCHAR(100) NULL,
   utm_campaign VARCHAR(150) NULL,
   utm_content VARCHAR(150) NULL,
+  utm_term VARCHAR(150) NULL,
   motivo_descalificacion TEXT NULL,
   contactado BOOLEAN NOT NULL DEFAULT FALSE,
   tratamiento_datos_aceptado BOOLEAN NOT NULL DEFAULT FALSE,
@@ -87,6 +89,7 @@ CREATE TABLE IF NOT EXISTS utm_urls (
   utm_medium VARCHAR(100) NOT NULL,
   utm_campaign VARCHAR(150) NOT NULL,
   utm_content VARCHAR(150) NULL,
+  utm_term VARCHAR(150) NULL,
   creado_por INT NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_utm_urls_usuario
@@ -147,3 +150,37 @@ INSERT IGNORE INTO festivos_colombia (fecha, descripcion) VALUES
 --   ADD COLUMN prioridad ENUM('alta', 'media_alta', 'en_revision') NOT NULL DEFAULT 'en_revision' AFTER calificado,
 --   ADD COLUMN tratamiento_datos_aceptado BOOLEAN NOT NULL DEFAULT FALSE AFTER prioridad,
 --   ADD COLUMN tratamiento_datos_fecha DATETIME NULL AFTER tratamiento_datos_aceptado;
+
+-- ---------------------------------------------------------------------------
+-- Migración Fase 16 para bases de datos EXISTENTES (como vsl_macondo real):
+-- corrección crítica de calificación (documento "Especificaciones Técnicas"
+-- del PM) + columna utm_term nueva en leads/contactos/utm_urls.
+--
+-- El ENUM de `prioridad` cambia de ('alta', 'media_alta', 'en_revision') a
+-- ('vip', 'alta', 'media_baja', 'en_revision'): 'media_alta' desaparece y
+-- 'vip'/'media_baja' son nuevos. Como pueden existir filas reales con
+-- 'media_alta', el cambio se hace en 3 pasos para no perder datos ni
+-- depender de si sql_mode es estricto:
+--   1) ampliar el ENUM para que incluya TANTO los valores viejos como los
+--      nuevos (ningún dato existente queda fuera del ENUM todavía),
+--   2) migrar las filas 'media_alta' -> 'alta' (el documento nuevo del PM
+--      sube FinTech/E-commerce/AdTech a prioridad alta, que es la industria
+--      que antes generaba 'media_alta'),
+--   3) recién ahí angostar el ENUM a los 4 valores finales, ya sin ninguna
+--      fila que dependa del valor viejo.
+-- Ejecutar los 3 pasos en orden, uno detrás de otro:
+--
+-- ALTER TABLE leads
+--   MODIFY COLUMN prioridad ENUM('alta', 'media_alta', 'en_revision', 'vip', 'media_baja') NOT NULL;
+--
+-- UPDATE leads SET prioridad = 'alta' WHERE prioridad = 'media_alta';
+--
+-- ALTER TABLE leads
+--   MODIFY COLUMN prioridad ENUM('vip', 'alta', 'media_baja', 'en_revision') NOT NULL;
+--
+-- Columna utm_term nueva (nullable, no rompe filas existentes) en las 3
+-- tablas que ya existían antes de esta fase:
+--
+-- ALTER TABLE leads ADD COLUMN utm_term VARCHAR(150) NULL AFTER utm_content;
+-- ALTER TABLE contactos ADD COLUMN utm_term VARCHAR(150) NULL AFTER utm_content;
+-- ALTER TABLE utm_urls ADD COLUMN utm_term VARCHAR(150) NULL AFTER utm_content;
