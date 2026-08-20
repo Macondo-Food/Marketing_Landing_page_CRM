@@ -27,6 +27,27 @@ function formatTime(isoString) {
   return timeFormatter.format(new Date(isoString));
 }
 
+// 'YYYY-MM-DDTHH:MM:SS.sssZ' -> 'YYYYMMDDTHHMMSSZ' (formato que espera el
+// link de Google Calendar en el parámetro `dates`).
+function toGoogleCalendarUtc(isoString) {
+  return new Date(isoString).toISOString().replace(/[-:]|\.\d{3}/g, '');
+}
+
+function buildGoogleCalendarUrl({ start, end }, meetLink) {
+  const details = meetLink
+    ? `Link de Google Meet: ${meetLink}`
+    : 'Reunión con Macondo Softwares.';
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: 'Llamada con Macondo Softwares',
+    dates: `${toGoogleCalendarUtc(start)}/${toGoogleCalendarUtc(end)}`,
+    details,
+  });
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
 // Agrupa los slots (ya vienen ordenados cronológicamente desde el backend)
 // por día, en el orden en que aparecen.
 function groupSlotsByDay(slots) {
@@ -149,16 +170,14 @@ export default function ScheduleSlots({ leadId, contactEmail, onClose }) {
         <p style={{ margin: '0 0 24px', color: '#B4B4B4', fontSize: 14, lineHeight: 1.6 }}>
           Te enviamos la invitación con los detalles a <strong>{contactEmail}</strong>.
         </p>
-        {booked.meetLink && (
-          <a
-            href={booked.meetLink}
-            target="_blank"
-            rel="noreferrer"
-            style={{ ...primaryButtonStyle, display: 'inline-block', textDecoration: 'none', marginBottom: 18 }}
-          >
-            Unirme por Google Meet
-          </a>
-        )}
+        <a
+          href={buildGoogleCalendarUrl(booked.slot, booked.meetLink)}
+          target="_blank"
+          rel="noreferrer"
+          style={{ ...primaryButtonStyle, display: 'inline-block', textDecoration: 'none', marginBottom: 18 }}
+        >
+          Agregar a mi calendario
+        </a>
         <div>
           <button onClick={onClose} style={secondaryButtonStyle}>
             Cerrar

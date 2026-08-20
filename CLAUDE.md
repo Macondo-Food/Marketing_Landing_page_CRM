@@ -582,6 +582,118 @@ medias**.
   bitácora resume los hallazgos de esa auditoría que no estaban
   reflejados aquí todavía.
 
+### Fase 14 — Notificaciones por correo + Google Chat (implementada, sin configurar)
+
+- Alcance confirmado por el usuario: se dispara SOLO cuando
+  `POST /calendar/agendar` confirma un evento creado — nunca al crear el
+  lead, nunca para descalificados. Un solo destinatario de correo y un
+  solo canal de Google Chat para todo el equipo (no por lead/vendedor).
+- `backend/src/services/notificaciones.service.js` (nuevo):
+  `enviarCorreoAgendamiento(lead, slot)` (Gmail/Google Workspace vía
+  `nodemailer`, con contraseña de aplicación) y
+  `enviarGoogleChatAgendamiento(lead, slot)` (webhook entrante de Google
+  Chat). Mismo patrón fire-and-forget que `webhook.service.js`: nunca
+  lanzan; si falta configuración o falla el envío solo hacen
+  `console.log`/`console.error`, nunca afectan la respuesta al usuario.
+- `backend/src/controllers/calendar.controller.js`: el `SELECT` del lead
+  en `postAgendar` ahora también trae `telefono`, `empresa` y
+  `prioridad` (antes solo `nombre`/`email`/`estado`/`calendar_event_id`)
+  para poder armar el contenido de la notificación. Ambas funciones se
+  llaman justo después de confirmar el evento y actualizar la base de
+  datos, envueltas en `try/catch`.
+- El correo incluye: nombre, empresa, email, teléfono, prioridad,
+  fecha/hora de la reunión (hora Bogotá) y el link de Meet. El mensaje
+  de Google Chat es el mismo contenido en formato compacto de texto.
+- **Código listo y probado en modo "sin configurar"**: se invocaron
+  ambas funciones directamente con datos de prueba y sin ninguna
+  variable seteada — cayeron correctamente al `console.log` esperado,
+  sin lanzar. **Las variables de entorno reales siguen vacías**:
+  `NOTIF_EMAIL_USER`, `NOTIF_EMAIL_APP_PASSWORD` y `NOTIF_EMAIL_DESTINO`
+  no están configuradas en `backend/.env` — el usuario decidió posponer
+  generar la contraseña de aplicación de Gmail. Mismo caso para
+  `GOOGLE_CHAT_WEBHOOK_URL` (opcional). **Hasta que se configuren, el
+  agendamiento sigue funcionando normal pero no se envía ningún correo
+  ni mensaje de Chat real** — solo queda en el log del servidor. Ver la
+  tabla de variables en la sección 5.
+
+### Fase 15 — Botón "Agregar a mi calendario" (reemplaza "Unirme por Google Meet")
+
+- `frontend/src/components/ScheduleSlots.jsx`: en la pantalla de
+  "¡Reunión agendada!", el link que antes abría directo el Meet ahora
+  abre `https://calendar.google.com/calendar/render?action=TEMPLATE...`
+  pre-rellenado: `text` fijo ("Llamada con Macondo Softwares"), `dates`
+  calculado del slot agendado (convertido a `YYYYMMDDTHHMMSSZ`), y
+  `details` con el link de Meet como texto dentro de la descripción del
+  evento (o un texto genérico si por algún motivo no hay `meetLink`). El
+  botón "Cerrar" no cambió.
+
+### Fase 17 — CRM: prioridad en la tabla, vista de Contactos, modal de detalle de lead editable, fecha de reunión, y persistencia del detalle del proveedor "Otro"
+
+- **Prioridad en vez de Origen (`/crm`):** `GET /leads`
+  (`leads.controller.js`) ahora selecciona `prioridad` (antes solo
+  `calificado`). `frontend/src/pages/CRM.jsx`: la columna "Origen"
+  (`utm_source`) se reemplazó por "Prioridad" con badge de color (`vip`
+  dorado, `alta` verde, `media_baja` amarillo, `en_revision` gris),
+  mismo componente `Badge` reutilizado para estado y prioridad.
+- **Vista de Contactos (`/crm/contactos`):** nueva, accesible para
+  cualquier rol. Backend: `PATCH /contactos/:id/contactado` (nuevo,
+  `contactos.controller.js` + `contactos.routes.js`, protegido con
+  `requireAuth` genérico) — solo permite cambiar ese booleano, valida
+  que `contactado` sea de tipo `boolean`. Frontend:
+  `frontend/src/pages/Contactos.jsx` (nuevo): tabla con nombre, email,
+  teléfono, empresa, `motivo_descalificacion`, badge de contactado
+  (sí/no) y botón por fila para alternar el estado; ruta agregada en
+  `App.jsx` y link "Contactos" en la navegación de `CRM.jsx`.
+- **Modal de detalle de lead (reemplaza la página completa):**
+  `frontend/src/pages/LeadDetalle.jsx` se reescribió como modal
+  (`{ leadId, onClose }` en vez de `useParams`) — overlay + tarjeta
+  centrada, cierra con el botón "×", clic afuera, o Escape.
+  `frontend/src/pages/CRM.jsx`: el nombre del lead en la tabla ahora es
+  un botón que abre el modal con estado local `leadSeleccionadoId`, sin
+  cambiar la URL. **Decisión sobre `/crm/leads/:id`:** se dejó como
+  fallback simple (`LeadDetalleRoute` en `App.jsx`, un wrapper que
+  traduce el `:id` de la URL a props y al cerrar navega a `/crm`) para
+  no romper un link directo o compartido a un lead específico — el uso
+  normal sigue siendo el modal desde la tabla.
+- **Edición de datos de contacto desde el modal:** `PATCH /leads/:id`
+  (nuevo, `leads.controller.js` + `leads.routes.js`, protegido con
+  `requireAuth`) — solo acepta `nombre`, `email`, `telefono`, `empresa`
+  (cada uno validado como no vacío, email además contra el regex
+  existente); cualquier otro campo del body se ignora, no hay forma de
+  tocar `estado`/`prioridad`/`calificado` desde este endpoint. En el
+  modal, el botón "Editar" convierte esos 4 campos en inputs con
+  "Guardar"/"Cancelar"; al guardar, actualiza el modal y además llama a
+  `onLeadUpdated(updated)`, que `CRM.jsx` usa para refrescar esa fila en
+  la tabla sin recargar la página. El resto del modal (origen/UTMs,
+  estado, prioridad, respuestas del quiz, fechas) sigue siendo de solo
+  lectura.
+- **Fecha/hora de la reunión agendada:** columna nueva
+  `reunion_fecha_hora DATETIME NULL` en `leads` (no existía ninguna
+  columna para esto — `schema.sql`, con el `ALTER TABLE` de migración
+  para `vsl_macondo` real). `POST /calendar/agendar`
+  (`calendar.controller.js`) la guarda en el mismo `UPDATE` que ya
+  guardaba `calendar_event_id`. `GET /leads/:id` la incluye; el modal la
+  muestra junto a "Fecha de registro" cuando el lead tiene
+  `calendar_event_id`, formateada en hora Bogotá (ej. "Miércoles, 19 de
+  agosto de 2026, 10:00 a. m.").
+- **Persistencia del `detalle` libre del proveedor "Otro":** hallazgo de
+  la auditoría (`ESTADO_ACTUAL.md`, sección 6 de esta bitácora) — ese
+  texto solo viajaba al webhook y se perdía si no estaba configurado.
+  Columna nueva `detalle TEXT NULL` en `respuestas_quiz` (`schema.sql`,
+  con su propio `ALTER TABLE` de migración). El `INSERT` de
+  `respuestas_quiz` en `leads.controller.js` ahora guarda `r.detalle`
+  (ya lo calculaba `qualification.service.js`, no hizo falta tocar ese
+  archivo). `GET /leads/:id` lo incluye por respuesta; `LeadDetalle.jsx`
+  lo muestra junto a la respuesta de proveedor de nube (ej. "Otros
+  proveedores / Hosting tradicional (DigitalOcean)").
+- Verificado con `vite build` sin errores y `node --check` en todos los
+  archivos de backend tocados, más una prueba directa de
+  `notificaciones.service.js` con datos falsos (ver Fase 14). **Pendiente
+  de que el usuario pruebe en su propio entorno** (incluyendo un
+  agendamiento real) antes del commit de esta fase — ver sección 6 para
+  las migraciones `ALTER TABLE` todavía sin confirmar contra
+  `vsl_macondo`.
+
 ---
 
 ## 2. Verificaciones recientes y lecciones aprendidas
@@ -644,7 +756,7 @@ Pedidas por el usuario para retomar en una sesión futura — documentadas tal
 cual se pidieron, sin diseñar la implementación ni el alcance exacto
 todavía salvo que se indique lo contrario. No confundir con la sección 3
 (esas sí están listas para construirse ya; estas necesitan más definición
-primero). De los 8 ítems, quedan pendientes el 4 al 8.
+primero). De los 8 ítems, solo queda pendiente el 6.
 
 1. **Generador de URLs con UTMs preestablecidos — completada en la Fase
    10** (ver sección 1). Página `/crm/generador-utm`, accesible para
@@ -659,25 +771,24 @@ primero). De los 8 ítems, quedan pendientes el 4 al 8.
    `/crm/usuarios`. Se resolvió la pregunta que había quedado pendiente:
    **todos los roles ven y editan todos los leads sin restricción** — no
    hay leads asignados por vendedor.
-4. **Fase 14 — Notificaciones por correo + Google Chat.** No iniciada.
-   Alcance exacto (qué eventos disparan notificación, a quién, con qué
-   contenido) todavía sin definir. No confundir con el webhook al CRM
-   externo de la Fase 16 (sección 1) — ese ya está completo y no
-   necesita URL real por ahora; esta Fase 14 es aparte (correo + Google
-   Chat) y sigue sin ningún código escrito.
-5. **Fase 15 — Cambiar el botón "Unirme por Google Meet" por "Agregar a
-   mi calendario".** No iniciada. El link de Meet actual se reemplaza por
-   un link pre-rellenado de Google Calendar. El usuario indicó que ya
-   tiene definida la solución técnica a usar, pendiente de detallar en una
-   sesión futura.
+4. **Fase 14 — Notificaciones por correo + Google Chat — completada,
+   ver sección 1.** Se dispara solo al agendar una reunión. Código listo
+   y probado en modo "sin configurar"; las variables de entorno reales
+   (`NOTIF_EMAIL_*`, `GOOGLE_CHAT_WEBHOOK_URL`) siguen vacías porque el
+   usuario decidió posponer generar la contraseña de aplicación de
+   Gmail — no confundir "no configurada" con "no implementada".
+5. **Fase 15 — Botón "Agregar a mi calendario" — completada, ver
+   sección 1.** Reemplaza el link directo de Meet por un link
+   pre-rellenado de Google Calendar.
 6. **Filtro de preguntas en descalificados/contactos.** No iniciada.
-   Alcance exacto pendiente de definir.
-7. **Ajuste de UI: detalle de lead como modal.** No iniciada. Cambiar
-   `/crm/leads/:id` (Fase 12, ítem 2 de esta lista) de página completa a
-   modal sobre la tabla de leads.
+   Alcance exacto pendiente de definir. Es el único ítem de esta lista
+   que sigue sin ningún código escrito.
+7. **Ajuste de UI: detalle de lead como modal — completada en la Fase
+   17, ver sección 1.** `/crm/leads/:id` (Fase 12) pasó de página
+   completa a modal sobre la tabla de leads, con la ruta directa como
+   fallback.
 8. **Ajuste de UI: columna "Prioridad" en vez de "Origen" en la tabla de
-   leads.** No iniciada. En `/crm` (`CRM.jsx`), quitar la columna Origen
-   (`utm_source`) y mostrar `prioridad` (Fase 11) en su lugar.
+   leads — completada en la Fase 17, ver sección 1.**
 
 ---
 
@@ -701,6 +812,10 @@ primero). De los 8 ítems, quedan pendientes el 4 al 8.
 | `JWT_SECRET` | configurada | firma los JWT de sesión del CRM (expiran a las 8h) |
 | `ALLOWED_ORIGINS` | no configurada (opcional) | orígenes permitidos por CORS, separados por coma; si se omite cae a `http://localhost:5173` (Fase 8) |
 | `WEBHOOK_CRM_URL` | no configurada (opcional, intencional) | webhook al CRM externo (Fase 16) — el PM confirmó que el JSON del documento era solo un ejemplo de formato, no una integración pendiente; mientras esté vacía, `POST /leads` solo hace `console.log` del payload, y ese es el comportamiento esperado por ahora, no un pendiente |
+| `NOTIF_EMAIL_USER` | **vacía, pendiente de configurar** | Fase 14 — cuenta de Gmail/Workspace que envía el correo de agendamiento; falta que el usuario genere la contraseña de aplicación |
+| `NOTIF_EMAIL_APP_PASSWORD` | **vacía, pendiente de configurar** | Fase 14 — contraseña de aplicación de esa cuenta (no la contraseña normal), se genera en `myaccount.google.com/apppasswords` |
+| `NOTIF_EMAIL_DESTINO` | **vacía, pendiente de configurar** | Fase 14 — único destinatario del correo de agendamiento |
+| `GOOGLE_CHAT_WEBHOOK_URL` | no configurada (opcional) | Fase 14 — webhook entrante de un espacio de Google Chat; mientras esté vacía, la notificación de Chat solo hace `console.log` |
 
 Frontend usa `VITE_API_URL` (opcional, `frontend/.env` / plantilla en
 `frontend/.env.example`) para apuntar al backend; si no está definida, cae a
@@ -775,15 +890,20 @@ bloqueado por terceros o sin empezar.
   ahora, ver Fase 16 en sección 1), pero si en el futuro sí se conecta
   contra un CRM externo real, vale la pena confirmar estos tres nombres
   antes de que ese CRM dependa de leerlos.
-- **El `detalle` libre de "Otros proveedores / Hosting tradicional" no se
-  persiste cuando el lead califica.** Viaja en el payload del webhook,
-  pero `respuestas_quiz` no tiene columna `detalle` (solo `pregunta`,
-  `respuesta`, `descalifica`) — para un lead calificado, ese texto no
-  queda guardado en ningún lado de la base de datos. Cuando el lead
-  descalifica sí se preserva, dentro de `motivo_descalificacion` (tabla
-  `contactos`).
-- **`utm_term` no se muestra en `/crm/leads/:id`.** Se captura, se guarda
-  en las 3 tablas (`leads`, `contactos`, `utm_urls`) y se usa en el
-  webhook (Fase 16), pero la tarjeta "Origen" de `LeadDetalle.jsx`
-  todavía solo muestra `utm_source`, `utm_medium`, `utm_campaign` y
-  `utm_content` — falta agregar el campo (cambio de una línea).
+- ~~El `detalle` libre de "Otros proveedores / Hosting tradicional" no se
+  persiste cuando el lead califica~~ — **resuelto en la Fase 17** (ver
+  sección 1): columna `detalle` nueva en `respuestas_quiz`.
+- ~~`utm_term` no se muestra en `/crm/leads/:id`~~ — **resuelto** (se
+  agregó a la tarjeta "Origen" del modal al convertirlo en la Fase 17).
+- **Migraciones `ALTER TABLE` sin confirmar como corridas contra
+  `vsl_macondo` real.** Van acumulándose varias columnas/ENUMs nuevos que
+  `schema.sql` documenta como bloques `ALTER TABLE` comentados (no se
+  ejecutan solos): el ENUM de `prioridad` de la Fase 16
+  (`vip`/`alta`/`media_baja`/`en_revision`), `utm_term` en `leads`/
+  `contactos`/`utm_urls` (Fase 16), y de la Fase 17,
+  `leads.reunion_fecha_hora` y `respuestas_quiz.detalle`. Sin estas
+  migraciones corridas, la funcionalidad correspondiente falla con un
+  error de base de datos en cuanto se use (`POST /leads` con prioridad
+  `vip`/`media_baja`, o `POST /calendar/agendar` con
+  `reunion_fecha_hora`). Confirmar con el usuario cuáles ya corrió antes
+  de dar por cerrado cualquier cierre de proyecto.

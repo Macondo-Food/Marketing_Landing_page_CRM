@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS leads (
     'venta_servicio'
   ) NOT NULL,
   calendar_event_id VARCHAR(255) NULL,
+  reunion_fecha_hora DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -40,6 +41,10 @@ CREATE TABLE IF NOT EXISTS respuestas_quiz (
   pregunta VARCHAR(100) NOT NULL,
   respuesta VARCHAR(150) NOT NULL,
   descalifica BOOLEAN NOT NULL,
+  -- Texto libre opcional (ej. pregunta proveedor_nube, opción "Otros
+  -- proveedores / Hosting tradicional"). Antes de esta fase solo viajaba al
+  -- webhook y se perdía si no estaba configurado — ver ESTADO_ACTUAL.md.
+  detalle TEXT NULL,
   CONSTRAINT fk_respuestas_quiz_lead
     FOREIGN KEY (lead_id) REFERENCES leads(id)
     ON DELETE CASCADE
@@ -184,3 +189,20 @@ INSERT IGNORE INTO festivos_colombia (fecha, descripcion) VALUES
 -- ALTER TABLE leads ADD COLUMN utm_term VARCHAR(150) NULL AFTER utm_content;
 -- ALTER TABLE contactos ADD COLUMN utm_term VARCHAR(150) NULL AFTER utm_content;
 -- ALTER TABLE utm_urls ADD COLUMN utm_term VARCHAR(150) NULL AFTER utm_content;
+
+-- ---------------------------------------------------------------------------
+-- Migración: columna reunion_fecha_hora nueva en leads (fecha/hora exacta de
+-- la reunión agendada, la guarda POST /calendar/agendar al mismo tiempo que
+-- calendar_event_id). Nullable, no rompe filas existentes — los leads ya
+-- agendados antes de esta columna simplemente quedan sin ese dato hasta que
+-- se reagenden.
+--
+-- ALTER TABLE leads ADD COLUMN reunion_fecha_hora DATETIME NULL AFTER calendar_event_id;
+
+-- ---------------------------------------------------------------------------
+-- Migración: columna detalle nueva en respuestas_quiz (texto libre opcional,
+-- ej. proveedor "Otros / Hosting tradicional"). Antes de esta fase ese texto
+-- solo viajaba al webhook del CRM externo y se perdía si no estaba
+-- configurado — ver ESTADO_ACTUAL.md. Nullable, no rompe filas existentes.
+--
+-- ALTER TABLE respuestas_quiz ADD COLUMN detalle TEXT NULL AFTER descalifica;

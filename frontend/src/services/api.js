@@ -73,6 +73,18 @@ export function getLeadDetalle(token, id) {
   });
 }
 
+// (token, id, { nombre?, email?, telefono?, empresa? }) -> { id, nombre, email, telefono, empresa }
+export function updateLead(token, id, payload) {
+  return request(`/leads/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 // (token, id, estado) -> { id, estado }
 export function updateLeadEstado(token, id, estado) {
   return request(`/leads/${id}/estado`, {
@@ -147,5 +159,24 @@ export function createUtmUrl(token, payload) {
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(payload),
+  });
+}
+
+// (token) -> [{ id, nombre, email, telefono, empresa, utm_source, ..., motivo_descalificacion, contactado, created_at }, ...]
+export function getContactos(token) {
+  return request('/contactos', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// (token, id, contactado) -> { id, contactado }
+export function updateContactoContactado(token, id, contactado) {
+  return request(`/contactos/${id}/contactado`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ contactado }),
   });
 }

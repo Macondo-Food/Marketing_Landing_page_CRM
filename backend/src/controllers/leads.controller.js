@@ -118,8 +118,8 @@ export async function createLead(req, res) {
 
     for (const r of respuestasEvaluadas) {
       await connection.execute(
-        `INSERT INTO respuestas_quiz (lead_id, pregunta, respuesta, descalifica) VALUES (?, ?, ?, ?)`,
-        [leadId, r.pregunta, r.respuesta, r.descalifica]
+        `INSERT INTO respuestas_quiz (lead_id, pregunta, respuesta, descalifica, detalle) VALUES (?, ?, ?, ?, ?)`,
+        [leadId, r.pregunta, r.respuesta, r.descalifica, r.detalle ?? null]
       );
     }
 
@@ -174,6 +174,58 @@ export async function updateEstado(req, res) {
   }
 }
 
+// Solo estos 4 campos son editables desde el CRM vía PATCH /leads/:id —
+// estado, prioridad, calificado, etc. los pone el sistema (quiz, agendamiento,
+// PATCH /leads/:id/estado) y no se tocan desde aquí.
+const CAMPOS_CONTACTO_EDITABLES = ['nombre', 'email', 'telefono', 'empresa'];
+
+export async function updateLead(req, res) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'id inválido' });
+  }
+
+  const body = req.body ?? {};
+  const fields = [];
+  const values = [];
+
+  for (const campo of CAMPOS_CONTACTO_EDITABLES) {
+    if (!(campo in body)) continue;
+    const valor = body[campo];
+    if (typeof valor !== 'string' || !valor.trim()) {
+      return res.status(400).json({ error: `${campo} no puede estar vacío` });
+    }
+    if (campo === 'email' && !EMAIL_RE.test(valor.trim())) {
+      return res.status(400).json({ error: 'email es inválido' });
+    }
+    fields.push(`${campo} = ?`);
+    values.push(valor.trim());
+  }
+
+  if (fields.length === 0) {
+    return res.status(400).json({ error: 'no hay campos para actualizar' });
+  }
+
+  try {
+    const [result] = await pool.execute(`UPDATE leads SET ${fields.join(', ')} WHERE id = ?`, [
+      ...values,
+      id,
+    ]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Lead no encontrado' });
+    }
+
+    const [[updated]] = await pool.query(
+      'SELECT id, nombre, email, telefono, empresa FROM leads WHERE id = ?',
+      [id]
+    );
+    res.json(updated);
+  } catch (err) {
+    console.error('[leads] error al actualizar datos de contacto:', err);
+    res.status(500).json({ error: 'Error al actualizar el lead' });
+  }
+}
+
 export async function getLeadDetalle(req, res) {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
@@ -183,7 +235,7 @@ export async function getLeadDetalle(req, res) {
   try {
     const [leadRows] = await pool.execute(
       `SELECT id, nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
-              calificado, prioridad, estado, calendar_event_id, created_at
+              calificado, prioridad, estado, calendar_event_id, reunion_fecha_hora, created_at
        FROM leads
        WHERE id = ?`,
       [id]
@@ -193,7 +245,7 @@ export async function getLeadDetalle(req, res) {
     }
 
     const [respuestas] = await pool.execute(
-      `SELECT pregunta, respuesta FROM respuestas_quiz WHERE lead_id = ? ORDER BY id`,
+      `SELECT pregunta, respuesta, detalle FROM respuestas_quiz WHERE lead_id = ? ORDER BY id`,
       [id]
     );
 
@@ -208,7 +260,7 @@ export async function listLeads(req, res) {
   try {
     const [rows] = await pool.execute(
       `SELECT id, nombre, email, telefono, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
-              calificado, estado, calendar_event_id, created_at
+              calificado, prioridad, estado, calendar_event_id, created_at
        FROM leads
        ORDER BY created_at DESC`
     );

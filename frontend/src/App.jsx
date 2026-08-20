@@ -1,10 +1,11 @@
-import { BrowserRouter, Outlet, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Outlet, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import LandingVSL from './pages/LandingVSL.jsx';
 import CRM from './pages/CRM.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Usuarios from './pages/Usuarios.jsx';
 import GeneradorUTM from './pages/GeneradorUTM.jsx';
 import LeadDetalle from './pages/LeadDetalle.jsx';
+import Contactos from './pages/Contactos.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 
 // /crm y /crm/dashboard comparten el mismo AuthProvider (token en memoria)
@@ -17,6 +18,16 @@ function CrmLayout() {
   );
 }
 
+// Fallback para acceso directo a /crm/leads/:id (link compartido, recarga de
+// página, etc.) — el uso normal es el modal que abre CRM.jsx sobre la tabla,
+// sin cambiar la URL. Aquí solo se traduce el :id de la URL a props y, al
+// cerrar, se vuelve a /crm.
+function LeadDetalleRoute() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  return <LeadDetalle leadId={Number(id)} onClose={() => navigate('/crm')} />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -27,7 +38,8 @@ export default function App() {
           <Route path="/crm/dashboard" element={<Dashboard />} />
           <Route path="/crm/usuarios" element={<Usuarios />} />
           <Route path="/crm/generador-utm" element={<GeneradorUTM />} />
-          <Route path="/crm/leads/:id" element={<LeadDetalle />} />
+          <Route path="/crm/contactos" element={<Contactos />} />
+          <Route path="/crm/leads/:id" element={<LeadDetalleRoute />} />
         </Route>
       </Routes>
     </BrowserRouter>

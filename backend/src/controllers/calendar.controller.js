@@ -1,5 +1,6 @@
 import pool from '../db/connection.js';
 import { getAvailableSlots, isSlotFree, createCalendarEvent } from '../services/googleCalendar.service.js';
+import { enviarCorreoAgendamiento, enviarGoogleChatAgendamiento } from '../services/notificaciones.service.js';
 
 export async function getDisponibilidad(req, res) {
   try {
@@ -30,7 +31,7 @@ export async function postAgendar(req, res) {
   let lead;
   try {
     const [rows] = await pool.execute(
-      'SELECT id, nombre, email, estado, calendar_event_id FROM leads WHERE id = ?',
+      'SELECT id, nombre, email, telefono, empresa, prioridad, estado, calendar_event_id FROM leads WHERE id = ?',
       [leadId]
     );
     lead = rows[0];
@@ -64,11 +65,21 @@ export async function postAgendar(req, res) {
     });
 
     await pool.execute(
-      `UPDATE leads SET calendar_event_id = ?, estado = 'agendado' WHERE id = ?`,
-      [event.id, leadId]
+      `UPDATE leads SET calendar_event_id = ?, reunion_fecha_hora = ?, estado = 'agendado' WHERE id = ?`,
+      [event.id, start, leadId]
     );
 
-    res.status(201).json({ eventId: event.id, meetLink: event.hangoutLink ?? null });
+    const meetLink = event.hangoutLink ?? null;
+
+    try {
+      const notifLead = { ...lead, meetLink };
+      enviarCorreoAgendamiento(notifLead, { start, end });
+      enviarGoogleChatAgendamiento(notifLead, { start, end });
+    } catch (notifErr) {
+      console.error('[calendar] error al disparar notificaciones (no afecta la respuesta al usuario):', notifErr);
+    }
+
+    res.status(201).json({ eventId: event.id, meetLink });
   } catch (err) {
     console.error('[calendar] error al agendar:', err);
     res.status(500).json({ error: 'Error al agendar la reunión' });

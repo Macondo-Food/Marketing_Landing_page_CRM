@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getLeads, updateLeadEstado } from '../services/api.js';
 import Login from './Login.jsx';
+import LeadDetalle from './LeadDetalle.jsx';
 import '../styles/crm.css';
 
 const ESTADOS_EDITABLES = [
@@ -32,8 +33,21 @@ const ESTADO_COLORS = {
   venta_servicio: { bg: 'rgba(21,128,61,.12)', text: '#15803D' },
 };
 
-function EstadoBadge({ estado }) {
-  const color = ESTADO_COLORS[estado] ?? ESTADO_COLORS.descalificado;
+const PRIORIDAD_LABELS = {
+  vip: 'VIP',
+  alta: 'Alta',
+  media_baja: 'Media-baja',
+  en_revision: 'En revisión',
+};
+
+const PRIORIDAD_COLORS = {
+  vip: { bg: 'rgba(184,134,11,.15)', text: '#8A6D0B' },
+  alta: { bg: 'rgba(21,128,61,.12)', text: '#15803D' },
+  media_baja: { bg: 'rgba(202,138,4,.15)', text: '#CA8A04' },
+  en_revision: { bg: 'rgba(107,107,107,.12)', text: '#6B6B6B' },
+};
+
+function Badge({ label, color }) {
   return (
     <span
       style={{
@@ -47,8 +61,22 @@ function EstadoBadge({ estado }) {
         whiteSpace: 'nowrap',
       }}
     >
-      {ESTADO_LABELS[estado] ?? estado}
+      {label}
     </span>
+  );
+}
+
+function EstadoBadge({ estado }) {
+  return <Badge label={ESTADO_LABELS[estado] ?? estado} color={ESTADO_COLORS[estado] ?? ESTADO_COLORS.descalificado} />;
+}
+
+function PrioridadBadge({ prioridad }) {
+  if (!prioridad) return <span style={{ color: '#9A9A9A', fontSize: 12 }}>—</span>;
+  return (
+    <Badge
+      label={PRIORIDAD_LABELS[prioridad] ?? prioridad}
+      color={PRIORIDAD_COLORS[prioridad] ?? PRIORIDAD_COLORS.en_revision}
+    />
   );
 }
 
@@ -112,6 +140,7 @@ function Dashboard() {
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState(null);
   const [rowErrors, setRowErrors] = useState({});
+  const [leadSeleccionadoId, setLeadSeleccionadoId] = useState(null);
 
   const loadLeads = useCallback(() => {
     setStatus('loading');
@@ -193,6 +222,9 @@ function Dashboard() {
           <Link to="/crm/generador-utm" style={navLinkStyle}>
             Generar URL
           </Link>
+          <Link to="/crm/contactos" style={navLinkStyle}>
+            Contactos
+          </Link>
           {usuario?.rol === 'admin' && (
             <Link to="/crm/usuarios" style={navLinkStyle}>
               Usuarios
@@ -264,7 +296,7 @@ function Dashboard() {
                 <th style={thStyle}>Nombre</th>
                 <th style={thStyle}>Email</th>
                 <th style={thStyle}>Teléfono</th>
-                <th style={thStyle}>Origen</th>
+                <th style={thStyle}>Prioridad</th>
                 <th style={thStyle}>Estado</th>
                 <th style={thStyle}>Fecha</th>
                 <th style={thStyle}>Cambiar estado</th>
@@ -274,13 +306,28 @@ function Dashboard() {
               {leads.map((lead) => (
                 <tr key={lead.id}>
                   <td style={tdStyle}>
-                    <Link to={`/crm/leads/${lead.id}`} style={{ color: '#714B67', fontWeight: 600 }}>
+                    <button
+                      onClick={() => setLeadSeleccionadoId(lead.id)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        color: '#714B67',
+                        fontWeight: 600,
+                        fontSize: 14,
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        fontFamily: "'Source Sans 3', system-ui, sans-serif",
+                      }}
+                    >
                       {lead.nombre}
-                    </Link>
+                    </button>
                   </td>
                   <td style={tdStyle}>{lead.email}</td>
                   <td style={tdStyle}>{lead.telefono}</td>
-                  <td style={tdStyle}>{lead.utm_source ?? '—'}</td>
+                  <td style={tdStyle}>
+                    <PrioridadBadge prioridad={lead.prioridad} />
+                  </td>
                   <td style={tdStyle}>
                     <EstadoBadge estado={lead.estado} />
                   </td>
@@ -319,6 +366,16 @@ function Dashboard() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {leadSeleccionadoId && (
+        <LeadDetalle
+          leadId={leadSeleccionadoId}
+          onClose={() => setLeadSeleccionadoId(null)}
+          onLeadUpdated={(updated) =>
+            setLeads((prev) => prev.map((l) => (l.id === updated.id ? { ...l, ...updated } : l)))
+          }
+        />
       )}
     </div>
   );
