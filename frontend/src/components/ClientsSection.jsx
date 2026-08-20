@@ -1,74 +1,110 @@
-import cliente1 from '../assets/cliente-1.png';
-import cliente1Webp from '../assets/cliente-1.webp';
-import cliente2 from '../assets/cliente-2.png';
-import cliente2Webp from '../assets/cliente-2.webp';
-import cliente3 from '../assets/cliente-3.png';
-import cliente3Webp from '../assets/cliente-3.webp';
-import cliente4 from '../assets/cliente-4.png';
-import cliente4Webp from '../assets/cliente-4.webp';
-import cliente5 from '../assets/cliente-5.png';
-import cliente5Webp from '../assets/cliente-5.webp';
-import cliente6 from '../assets/cliente-6.png';
-import cliente6Webp from '../assets/cliente-6.webp';
+import whaleCloud from '../assets/whale-cloud-logo.png';
+import whaleCloudWebp from '../assets/whale-cloud-logo.webp';
+import claro from '../assets/claro-logo.png';
+import claroWebp from '../assets/claro-logo.webp';
+import govLab from '../assets/gov-lab-logo.png';
+import govLabWebp from '../assets/gov-lab-logo.webp';
+import manizales from '../assets/manizales-logo.png';
+import manizalesWebp from '../assets/manizales-logo.webp';
+import toka from '../assets/toka-logo.png';
+import tokaWebp from '../assets/toka-logo.webp';
+import universidadSabana from '../assets/universidad-sabana-logo.png';
+import universidadSabanaWebp from '../assets/universidad-sabana-logo.webp';
 
 const clientes = [
   {
-    id: 'cliente-1',
-    src: cliente1,
-    srcWebp: cliente1Webp,
-    width: 300,
-    height: 300,
-    displayHeight: 46,
-    alt: 'Logo de empresa cliente de Macondo Softwares 1',
+    id: 'whale-cloud',
+    src: whaleCloud,
+    srcWebp: whaleCloudWebp,
+    width: 274,
+    height: 216,
+    displayHeight: 44,
+    alt: 'Logo de Whale Cloud, cliente de Macondo Softwares',
   },
   {
-    id: 'cliente-2',
-    src: cliente2,
-    srcWebp: cliente2Webp,
-    width: 400,
-    height: 154,
-    displayHeight: 34,
-    alt: 'Logo de empresa cliente de Macondo Softwares 2',
+    id: 'claro',
+    src: claro,
+    srcWebp: claroWebp,
+    width: 274,
+    height: 216,
+    displayHeight: 44,
+    alt: 'Logo de Claro, cliente de Macondo Softwares',
   },
   {
-    id: 'cliente-3',
-    src: cliente3,
-    srcWebp: cliente3Webp,
-    width: 300,
-    height: 300,
-    displayHeight: 46,
-    alt: 'Logo de empresa cliente de Macondo Softwares 3',
+    id: 'gov-lab',
+    src: govLab,
+    srcWebp: govLabWebp,
+    width: 255,
+    height: 90,
+    displayHeight: 32,
+    alt: 'Logo de Govlab Universidad de La Sabana, cliente de Macondo Softwares',
   },
   {
-    id: 'cliente-4',
-    src: cliente4,
-    srcWebp: cliente4Webp,
-    width: 300,
-    height: 285,
-    displayHeight: 46,
-    alt: 'Logo de empresa cliente de Macondo Softwares 4',
+    id: 'manizales',
+    src: manizales,
+    srcWebp: manizalesWebp,
+    width: 512,
+    height: 161,
+    displayHeight: 36,
+    alt: 'Logo de Manizales del Alma y People Contact, cliente de Macondo Softwares',
   },
   {
-    id: 'cliente-6',
-    src: cliente6,
-    srcWebp: cliente6Webp,
-    width: 500,
-    height: 169,
-    displayHeight: 42,
-    alt: 'Logo de empresa cliente de Macondo Softwares 6',
+    id: 'toka',
+    src: toka,
+    srcWebp: tokaWebp,
+    width: 274,
+    height: 216,
+    displayHeight: 44,
+    alt: 'Logo de Toka, cliente de Macondo Softwares',
   },
   {
-    id: 'cliente-5',
-    src: cliente5,
-    srcWebp: cliente5Webp,
-    width: 400,
-    height: 209,
-    displayHeight: 40,
-    alt: 'Logo de empresa cliente de Macondo Softwares 5',
+    id: 'universidad-sabana',
+    src: universidadSabana,
+    srcWebp: universidadSabanaWebp,
+    width: 512,
+    height: 180,
+    displayHeight: 38,
+    alt: 'Logo de la Universidad de La Sabana, cliente de Macondo Softwares',
   },
 ];
 
+function ClientCard({ cliente }) {
+  return (
+    <div
+      style={{
+        flex: '0 0 auto',
+        width: 190,
+        background: '#fff',
+        borderRadius: 10,
+        padding: 20,
+        height: 88,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 14,
+      }}
+    >
+      <picture>
+        <source srcSet={cliente.srcWebp} type="image/webp" />
+        <img
+          src={cliente.src}
+          alt={cliente.alt}
+          width={cliente.width}
+          height={cliente.height}
+          loading="lazy"
+          style={{ width: '100%', height: cliente.displayHeight, objectFit: 'contain' }}
+        />
+      </picture>
+    </div>
+  );
+}
+
 export default function ClientsSection() {
+  // El track duplica la lista de logos una vez y la anima con
+  // translateX(-50%) (keyframes en index.css) — como las dos mitades son
+  // idénticas, el loop queda continuo y sin salto visible. Se pausa al
+  // pasar el mouse (:hover en index.css) y se desactiva por completo con
+  // prefers-reduced-motion.
   return (
     <section style={{ maxWidth: 1140, margin: '0 auto', padding: '70px 24px 80px' }}>
       <h2
@@ -83,33 +119,19 @@ export default function ClientsSection() {
       >
         Han confiado en nosotros
       </h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-        {clientes.map((cliente) => (
-          <div
-            key={cliente.id}
-            style={{
-              background: '#fff',
-              borderRadius: 10,
-              padding: 20,
-              minHeight: 88,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <picture>
-              <source srcSet={cliente.srcWebp} type="image/webp" />
-              <img
-                src={cliente.src}
-                alt={cliente.alt}
-                width={cliente.width}
-                height={cliente.height}
-                loading="lazy"
-                style={{ width: '100%', height: cliente.displayHeight, objectFit: 'contain' }}
-              />
-            </picture>
-          </div>
-        ))}
+      <div
+        style={{
+          overflow: 'hidden',
+          WebkitMaskImage:
+            'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
+          maskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
+        }}
+      >
+        <div className="clients-track" style={{ display: 'flex', width: 'max-content' }}>
+          {[...clientes, ...clientes].map((cliente, index) => (
+            <ClientCard key={`${cliente.id}-${index}`} cliente={cliente} />
+          ))}
+        </div>
       </div>
     </section>
   );
