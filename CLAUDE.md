@@ -694,6 +694,45 @@ medias**.
   las migraciones `ALTER TABLE` todavía sin confirmar contra
   `vsl_macondo`.
 
+### Fase 18 — Favicon y slider de logos de clientes (landing)
+
+- **Favicon:** `frontend/public/favicon.ico` (nuevo, multi-tamaño
+  16/32/48/64) generado a partir de `macondo-logo.png` con Pillow
+  (instalado vía `pip` solo para este procesamiento puntual de imágenes
+  — el proyecto no tenía ninguna herramienta de imágenes hasta ahora),
+  centrado sobre un lienzo cuadrado transparente para no deformar el
+  logo. `frontend/index.html` gana
+  `<link rel="icon" href="/favicon.ico" sizes="any" />` — antes no había
+  ningún favicon configurado, ni siquiera el de Vite por defecto.
+- **Logos nuevos de clientes:** el usuario agregó 6 logos nuevos a
+  `frontend/src/assets/` (`claro-logo`, `gov-lab-logo`,
+  `manizales-logo`, `toka-logo`, `universidad-sabana-logo`,
+  `whale-cloud-logo` — este último renombrado de `Whale-cloud-logo.png`
+  a minúsculas por consistencia con el resto de nombres de archivo). Los
+  6 ya venían con fondo transparente (verificado por canal alpha), así
+  que no hizo falta reprocesarlos — solo se generó su versión `.webp`
+  (mismo criterio de optimización que el resto de logos del proyecto,
+  30-60% más liviano que el PNG). **Alibaba no se tocó**: no vive en
+  `ClientsSection.jsx` sino en `Hero.jsx` como badge de partner, y se
+  dejó exactamente como estaba.
+- **Los 6 logos placeholder `cliente-1` a `cliente-6`** (y sus `.webp`)
+  se eliminaron por completo de `frontend/src/assets/` — ya no
+  representaban clientes reales.
+- **`ClientsSection.jsx`** pasó de una grilla estática de 3 columnas a
+  un **marquee horizontal continuo** con los 6 logos reales (sin
+  dependencias nuevas): la lista se duplica una vez y se anima con
+  `translateX(-50%)` (`@keyframes clients-marquee` en
+  `frontend/src/index.css`) — como las dos mitades son idénticas, el
+  loop no tiene salto visible. Se pausa al pasar el mouse
+  (`:hover`) y se desactiva por completo con `prefers-reduced-motion`.
+  Mantiene `loading="lazy"` y `alt` descriptivo en cada logo.
+- Verificado con `pnpm build` (sin errores, tamaños de imagen
+  optimizados — `toka-logo.webp`, de 2.1 KB, queda inlineado como
+  base64 en el JS por el `assetsInlineLimit` de 4 KB de Vite, no es un
+  archivo aparte en `dist/`, comportamiento normal) y visualmente en el
+  navegador (favicon sirviendo `200 image/x-icon`, marquee animando
+  fluido, sin los logos placeholder).
+
 ---
 
 ## 2. Verificaciones recientes y lecciones aprendidas
