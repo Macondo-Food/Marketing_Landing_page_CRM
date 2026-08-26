@@ -1,10 +1,34 @@
-// Placeholder hasta que llegue el código de embed real en reference/vturb-embed.txt.
-// Cuando exista ese código, este componente se reemplaza sin tocar el resto de la landing.
-// El clic dispara el popup del quiz de calificación (ver LandingVSL.jsx).
+import { useEffect } from 'react';
+
+// Embed real de Vturb (Converte AI). El <script> del snippet original crea
+// dinámicamente otro <script> y lo agrega a <head> — se replica esa misma
+// lógica acá con document.createElement en vez de pegar un <script> literal
+// en el JSX (React no lo ejecutaría). Se evita duplicar el <script> si el
+// componente se vuelve a montar (ej. Fast Refresh en desarrollo).
+const PLAYER_SCRIPT_SRC =
+  'https://scripts.converteai.net/4fe20c2b-9840-4bf1-bc41-73e3d2c46b5a/players/6a8cd7ce205ee703bdef6eac/v4/player.js';
+
+// El clic sobre el área del video sigue abriendo nuestro popup del quiz
+// (ver LandingVSL.jsx) como control manual, independiente de la revelación
+// automática por el señuelo Vturb (ver id="abrir-formulario-vsl" en
+// LandingVSL.jsx).
 export default function VturbPlayer({ onClick }) {
+  useEffect(() => {
+    if (document.querySelector(`script[src="${PLAYER_SCRIPT_SRC}"]`)) return;
+    const script = document.createElement('script');
+    script.src = PLAYER_SCRIPT_SRC;
+    script.async = true;
+    document.head.appendChild(script);
+  }, []);
+
   return (
     <div
-      onClick={onClick}
+      // onClickCapture (no onClick): el elemento real <vturb-smartplayer>
+      // maneja sus propios clics internamente y detiene la propagación antes
+      // de que llegue a un onClick normal (fase de burbuja) en este div —
+      // confirmado en vivo, el clic no abría el popup. La fase de captura
+      // se dispara antes que el player pueda detenerla.
+      onClickCapture={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -14,53 +38,17 @@ export default function VturbPlayer({ onClick }) {
       role="button"
       tabIndex={0}
       aria-label="Reproducir video"
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 16,
-        background: '#0C0C0C',
-        cursor: 'pointer',
-      }}
+      style={{ position: 'absolute', inset: 0 }}
     >
-      <div
-        style={{
-          width: 84,
-          height: 84,
-          borderRadius: '50%',
-          border: '2px solid #F8F522',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
+      <vturb-smartplayer
+        id="vid-6a8cd7ce205ee703bdef6eac"
+        style={{ display: 'block', margin: '0 auto', width: '100%' }}
       >
         <div
-          style={{
-            width: 0,
-            height: 0,
-            marginLeft: 6,
-            borderTop: '14px solid transparent',
-            borderBottom: '14px solid transparent',
-            borderLeft: '22px solid #F8F522',
-          }}
+          className="vturb-player-placeholder"
+          style={{ position: 'relative', width: '100%', padding: '56.25% 0 0', zIndex: 0, backgroundColor: 'black' }}
         />
-      </div>
-      <p
-        style={{
-          margin: 0,
-          fontFamily: 'Montserrat, sans-serif',
-          fontSize: 13,
-          fontWeight: 600,
-          letterSpacing: '.08em',
-          textTransform: 'uppercase',
-          color: '#8A8A8A',
-        }}
-      >
-        Video pendiente de integración (Vturb)
-      </p>
+      </vturb-smartplayer>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import migrate from './db/migrate.js';
 import leadsRouter from './routes/leads.routes.js';
 import calendarRouter from './routes/calendar.routes.js';
 import authRouter from './routes/auth.routes.js';
@@ -34,6 +35,16 @@ app.use('/utm-urls', utmRouter);
 app.use('/contactos', contactosRouter);
 
 const PORT = process.env.PORT || 3001;
+
+// Falla rápido y visible si la migración no puede correr — el servidor no
+// debe arrancar sobre una base de datos con estructura incompleta.
+try {
+  await migrate();
+} catch (err) {
+  console.error('[migrate] fallo al migrar la base de datos, el servidor no va a arrancar:');
+  console.error(err);
+  process.exit(1);
+}
 
 app.listen(PORT, () => {
   console.log(`[backend] escuchando en http://localhost:${PORT}`);

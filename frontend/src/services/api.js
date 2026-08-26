@@ -104,6 +104,13 @@ export function getDashboard(token) {
   });
 }
 
+// (token) -> { campanas: [{ utm_source, utm_campaign, total, calificados, agendados, porcentajeConversion }, ...] }
+export function getCampanas(token) {
+  return request('/dashboard/campanas', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 // (token) -> [{ id, nombre, email, rol, created_at }, ...]
 export function getUsuarios(token) {
   return request('/usuarios', {

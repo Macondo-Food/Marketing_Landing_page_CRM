@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { getDashboard } from '../services/api.js';
+import { getCampanas, getDashboard } from '../services/api.js';
 import Login from './Login.jsx';
 import '../styles/crm.css';
 
@@ -118,18 +118,74 @@ function QuestionCard({ pregunta, answers }) {
   );
 }
 
+function CampanasTable({ campanas }) {
+  if (campanas.length === 0) {
+    return <p style={{ color: '#6B6B6B' }}>Todavía no hay leads con datos de campaña.</p>;
+  }
+
+  const thStyle = {
+    textAlign: 'left',
+    padding: '10px 14px',
+    fontFamily: 'Montserrat, sans-serif',
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: '.06em',
+    textTransform: 'uppercase',
+    color: '#6B6B6B',
+    borderBottom: '1px solid #E4E4E7',
+  };
+
+  const tdStyle = {
+    padding: '10px 14px',
+    fontSize: 13,
+    color: '#1F1F1F',
+    borderBottom: '1px solid #F0F0F1',
+  };
+
+  return (
+    <div style={{ ...cardStyle, padding: 0, overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={thStyle}>Campaña</th>
+            <th style={thStyle}>Leads</th>
+            <th style={thStyle}>Calificados</th>
+            <th style={thStyle}>Agendados</th>
+            <th style={thStyle}>% Conversión</th>
+          </tr>
+        </thead>
+        <tbody>
+          {campanas.map((c) => (
+            <tr key={`${c.utm_source}::${c.utm_campaign}`}>
+              <td style={tdStyle}>
+                {c.utm_source} / {c.utm_campaign}
+              </td>
+              <td style={tdStyle}>{c.total}</td>
+              <td style={tdStyle}>{c.calificados}</td>
+              <td style={tdStyle}>{c.agendados}</td>
+              <td style={tdStyle}>{c.porcentajeConversion}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function DashboardView() {
   const { token, logout } = useAuth();
   const [data, setData] = useState(null);
+  const [campanas, setCampanas] = useState([]);
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
     setStatus('loading');
     setError('');
-    return getDashboard(token)
-      .then((result) => {
-        setData(result);
+    return Promise.all([getDashboard(token), getCampanas(token)])
+      .then(([dashboardResult, campanasResult]) => {
+        setData(dashboardResult);
+        setCampanas(campanasResult.campanas);
         setStatus('ready');
       })
       .catch((err) => {
@@ -241,6 +297,19 @@ function DashboardView() {
               ))}
             </div>
           )}
+
+          <h2
+            style={{
+              margin: '32px 0 14px',
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+              fontSize: 16,
+              color: '#1F1F1F',
+            }}
+          >
+            Rendimiento por campaña
+          </h2>
+          <CampanasTable campanas={campanas} />
         </>
       )}
     </div>

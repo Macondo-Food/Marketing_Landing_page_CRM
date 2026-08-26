@@ -1,6 +1,20 @@
 import VturbPlayer from './VturbPlayer.jsx';
 
-export default function VideoSection({ onPlayClick }) {
+const reserveButtonStyle = {
+  padding: '14px 32px',
+  borderRadius: 999,
+  border: 'none',
+  background: '#F8F522',
+  color: '#000',
+  cursor: 'pointer',
+  fontFamily: 'Montserrat, sans-serif',
+  fontWeight: 700,
+  fontSize: 14,
+  textTransform: 'uppercase',
+  letterSpacing: '.06em',
+};
+
+export default function VideoSection({ onPlayClick, showReserveButton, onReserveClick }) {
   return (
     <section style={{ maxWidth: 1020, margin: '0 auto', padding: '44px 24px 0' }}>
       <div
@@ -16,6 +30,13 @@ export default function VideoSection({ onPlayClick }) {
           <VturbPlayer onClick={onPlayClick} />
         </div>
       </div>
+      {showReserveButton && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
+          <button onClick={onReserveClick} style={reserveButtonStyle}>
+            Reservar mi llamada
+          </button>
+        </div>
+      )}
     </section>
   );
 }

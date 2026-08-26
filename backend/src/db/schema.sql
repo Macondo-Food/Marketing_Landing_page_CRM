@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS leads (
   nombre VARCHAR(150) NOT NULL,
   email VARCHAR(150) NOT NULL,
   telefono VARCHAR(30) NOT NULL,
-  empresa VARCHAR(150) NOT NULL,
+  empresa VARCHAR(150) NOT NULL DEFAULT '',
   utm_source VARCHAR(100) NULL,
   utm_medium VARCHAR(100) NULL,
   utm_campaign VARCHAR(150) NULL,

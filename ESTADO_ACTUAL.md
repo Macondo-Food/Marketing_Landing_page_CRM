@@ -141,16 +141,14 @@ probado en vivo, y no existe ningún plan ni configuración de deploy.
   configurado, ese dato se pierde sin quedar en ningún lado de la base de
   datos. Cuando el lead descalifica sí queda preservado, dentro del texto
   de `motivo_descalificacion`.
-- **Migración de `prioridad` en la base de datos real (`vsl_macondo`) sin
-  confirmar como ejecutada.** `schema.sql` documenta el `ALTER TABLE` en 3
-  pasos para pasar el ENUM de `prioridad` de
-  `('alta','media_alta','en_revision')` a
-  `('vip','alta','media_baja','en_revision')`, pero es un bloque comentado
-  que el usuario debe correr a mano — no hay forma de confirmar desde el
-  código si ya se ejecutó contra la base real. **Si no se ha corrido, todo
-  `INSERT INTO leads` con prioridad `vip` o `media_baja` va a fallar** (el
-  ENUM viejo no acepta esos valores). Mismo caso para las columnas nuevas
-  `utm_term` en `leads`/`contactos`/`utm_urls`.
+- ~~Migración de `prioridad` en la base de datos real (`vsl_macondo`) sin
+  confirmar como ejecutada.~~ — **RESUELTO (Fase 19, ver CLAUDE.md).**
+  Auditoría directa contra `information_schema` (solo lectura) confirmó
+  que `vsl_macondo` ya tenía el ENUM final y todas las columnas nuevas
+  aplicadas. Además, `backend/src/db/migrate.js` (nuevo) ahora verifica y
+  aplica automáticamente cualquier migración que falte cada vez que
+  arranca el servidor — este punto ya no es deuda técnica pendiente de
+  confirmar a mano.
 - **Festivo "Virgen de Chiquinquirá" pendiente en `festivos_colombia`.**
   Fecha en disputa entre fuentes (9 o 13 de julio); documentado como
   pendiente desde la Fase 13, sigue sin el `INSERT` correspondiente.
@@ -271,10 +269,10 @@ notificaciones automáticas (revisando el CRM manualmente), el sistema
 central de captación y calificación de leads es sólido.
 
 **Indispensable resolver antes de dar el proyecto por cerrado:**
-1. **Confirmar (o correr) la migración de `prioridad`/`utm_term` contra la
-   base de datos real.** Es el único punto que puede tumbar `POST /leads`
-   en producción con un error de base de datos silencioso desde el punto
-   de vista del usuario del quiz.
+1. ~~Confirmar (o correr) la migración de `prioridad`/`utm_term` contra la
+   base de datos real.~~ — **RESUELTO (Fase 19).** Auditado y confirmado
+   contra la base real, y `backend/src/db/migrate.js` ahora se encarga de
+   esto automáticamente en cada arranque del servidor.
 2. **Decidir qué pasa con el webhook**: o se configura `WEBHOOK_CRM_URL`
    real y se prueba en vivo, o se documenta explícitamente que por ahora
    el proyecto opera sin notificar a un CRM externo (evitando que alguien

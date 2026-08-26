@@ -125,15 +125,21 @@ function validateContact(contact) {
   return errors;
 }
 
-export default function QuizPopup({ onClose }) {
+// Estado inicial de los pasos del quiz — se reaplica cada vez que el popup
+// se abre (ver el efecto de reset más abajo) porque el componente ahora
+// permanece siempre montado (nunca se desmonta al cerrar), así que su
+// estado interno ya no se reinicia solo por volver a montarse.
+const INITIAL_CONTACT = {
+  nombre: '',
+  email: '',
+  telefono: '',
+  empresa: '',
+  tratamientoDatosAceptado: false,
+};
+
+export default function QuizPopup({ isOpen, onClose }) {
   const [step, setStep] = useState(CONTACT_STEP);
-  const [contact, setContact] = useState({
-    nombre: '',
-    email: '',
-    telefono: '',
-    empresa: '',
-    tratamientoDatosAceptado: false,
-  });
+  const [contact, setContact] = useState(INITIAL_CONTACT);
   const [contactErrors, setContactErrors] = useState({});
   const [answers, setAnswers] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -153,12 +159,30 @@ export default function QuizPopup({ onClose }) {
     [isResultStep, answers]
   );
 
+  // Vuelve a un quiz en blanco cada vez que se abre (equivalente a lo que
+  // antes pasaba solo, al desmontar/montar el componente).
+  useEffect(() => {
+    if (!isOpen) return;
+    setStep(CONTACT_STEP);
+    setContact(INITIAL_CONTACT);
+    setContactErrors({});
+    setAnswers([]);
+    setSelected(null);
+    setDetailText('');
+    setSubmitStatus('idle');
+    setSubmitError('');
+    setLeadId(null);
+    setBackendCalificado(null);
+    hasSubmittedRef.current = false;
+  }, [isOpen]);
+
   useEffect(() => {
     function handleKeyDown(e) {
       if (e.key === 'Escape') onClose();
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose]);
 
   // Se envía siempre (califique o no según el cálculo del frontend): el
@@ -256,11 +280,11 @@ export default function QuizPopup({ onClose }) {
   return (
     <div
       onClick={onClose}
+      className={`quiz-popup-overlay${isOpen ? '' : ' quiz-popup-hidden'}`}
       style={{
         position: 'fixed',
         inset: 0,
         background: 'rgba(0,0,0,.75)',
-        display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: 20,

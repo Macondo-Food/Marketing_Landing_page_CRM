@@ -1,6 +1,6 @@
 # Bitácora de estado — Proyecto VSL Macondo
 
-Última actualización: 2026-08-19.
+Última actualización: 2026-08-26.
 
 Este archivo es un resumen del estado real del código para retomar el trabajo
 sin tener que releer toda la conversación. La fuente de verdad del **diseño
@@ -733,6 +733,117 @@ medias**.
   navegador (favicon sirviendo `200 image/x-icon`, marquee animando
   fluido, sin los logos placeholder).
 
+### Fase 19 — Video real de Vturb integrado, reporte de campañas en el dashboard, y auto-migración de base de datos
+
+- **Vturb ya no es un placeholder.** `frontend/src/components/VturbPlayer.jsx`
+  carga el script real de Converte AI/Vturb (`player.js`, mismo patrón de
+  `document.createElement('script')` que ya se usaba para scripts de
+  terceros) y renderiza el `<vturb-smartplayer>` real en vez del ícono de
+  play placeholder. El bloqueo de la sección 3 ("pendiente de que el PM
+  entregue el código de embed") queda resuelto — `reference/vturb-embed.txt`
+  sigue vacío (0 bytes); el player ID se pegó directo en el componente en
+  vez de guardarse ahí.
+- **Patrón "señuelo" + `MutationObserver` para el CTA de Vturb, verificado
+  en vivo antes de construirlo (no asumido).** El panel de Vturb está
+  configurado para revelar un elemento por id (`abrir-formulario-vsl`)
+  entre el minuto 8:15 y 9:35 del video. Se comprobó en el navegador que
+  Vturb hace esto con `element.style.setProperty('display', ..., 'important')`
+  directo sobre el nodo (primero lo oculta al cargar la página, luego lo
+  revela), no con clases CSS. Por eso `frontend/src/pages/LandingVSL.jsx`
+  monta un `<div id="abrir-formulario-vsl">` vacío y sin tamaño — el
+  señuelo — separado por completo del popup real (`QuizPopup.jsx`, que ya
+  no comparte ese id). Un `MutationObserver` sobre el señuelo detecta la
+  primera vez que su `display` deja de ser `none` y entonces abre el popup
+  (`setIsQuizOpen(true)`), marca `hasRevealed = true` (botón persistente,
+  ver abajo) y se desconecta — de ahí en adelante el popup queda 100%
+  controlado por React, Vturb no vuelve a tocarlo.
+  - Bug real encontrado y corregido durante la construcción: un chequeo
+    "por si ya estaba revelado" al montar el observer disparaba el popup
+    solo con cargar la página, porque el script de Vturb carga `async` y
+    todavía no había aplicado su `display: none` cuando el efecto corría —
+    el `<div>` señuelo se veía con su `display` por defecto del navegador
+    (`block`), que el chequeo interpretaba como "ya revelado". Se quitó
+    ese chequeo inmediato; el observer solo reacciona a mutaciones futuras.
+- **Causa real del bug de centrado del popup:** no era un error de CSS
+  propio del popup. Antes de este cambio, `QuizPopup.jsx` compartía el
+  mismo id `abrir-formulario-vsl` que Vturb manipula directamente. Un
+  `display: ... !important` inline le gana en especificidad a cualquier
+  clase CSS nuestra, así que cuando Vturb revelaba con `display: block`
+  (no `flex`, que es lo que necesita el `alignItems`/`justifyContent` del
+  overlay para centrar), el popup se renderizaba pegado arriba a la
+  izquierda. Confirmado reproduciendo el bug en vivo antes de la solución.
+  Con el señuelo separado, `QuizPopup.jsx` ya no comparte nodo con nadie
+  más y el centrado por flexbox nunca vuelve a ser pisado.
+- **Botón persistente "Reservar mi llamada"**
+  (`frontend/src/components/VideoSection.jsx`, props nuevos
+  `showReserveButton`/`onReserveClick`): aparece debajo del video en el
+  mismo momento en que se revela el señuelo, mismo estilo de acento
+  amarillo que el resto de la landing, y **no vuelve a ocultarse** aunque
+  el usuario cierre el popup — reabre el mismo popup, centrado y cerrable
+  normalmente (X, clic afuera, Escape).
+- **Clic manual en el video corregido.** El `<vturb-smartplayer>` real
+  intercepta el clic y detiene su propagación antes de llegar a un
+  `onClick` normal (fase de burbuja) — se comprobó en vivo que el clic ya
+  no abría el popup con el player real instalado (sí funcionaba con el
+  placeholder viejo). `VturbPlayer.jsx` usa `onClickCapture` en vez de
+  `onClick` (fase de captura, se dispara antes de que el player pueda
+  detener el evento) para que el clic manual siga funcionando como
+  mecanismo de apertura independiente del CTA de Vturb.
+- **Reporte "Rendimiento por campaña" en el dashboard** (`GET
+  /dashboard/campanas`, `dashboard.controller.js` + `dashboard.routes.js`,
+  protegido con el mismo `requireAuth` genérico que `GET /dashboard`):
+  agrupa `leads` por `utm_source` + `utm_campaign` (agrupando por las
+  columnas crudas — MySQL agrupa `NULL` con `NULL` correctamente — y
+  mostrando "directo"/"Sin campaña" solo al armar la respuesta), con total
+  de leads, calificados, agendados-o-superior y `%` de conversión por
+  campaña. `frontend/src/pages/Dashboard.jsx` agrega la tabla
+  `CampanasTable` debajo de las tarjetas de preguntas existentes, cargada
+  en paralelo con `GET /dashboard` (`Promise.all`).
+  `frontend/src/services/api.js` gana `getCampanas(token)`.
+- **Sistema de auto-migración de base de datos** (`backend/src/db/migrate.js`,
+  nuevo): ya no hace falta copiar/pegar bloques de `schema.sql` a mano en
+  phpMyAdmin. `migrate()` corre automáticamente en `backend/src/app.js`
+  **antes** de `app.listen` — si falla, hace `process.exit(1)` y el
+  servidor no arranca (falla rápido y visible, nunca arranca roto en
+  silencio). Cada paso es idempotente, seguro de correr una y otra vez sin
+  importar el estado de la base:
+  - Tablas: `CREATE TABLE IF NOT EXISTS` con la forma **final** de cada
+    una (no la forma histórica intermedia) — una base nueva queda igual a
+    una ya migrada sin pasar por ningún `ALTER TABLE` de por medio.
+  - Columnas que solo faltarían en una base vieja (`utm_term`,
+    `reunion_fecha_hora`, `detalle`, y las de la Fase 11): se verifica
+    contra `information_schema.COLUMNS` antes de cada `ALTER TABLE ADD
+    COLUMN`.
+  - `leads.prioridad`: compara el `COLUMN_TYPE` real contra el ENUM final
+    de 4 valores; si difiere, corre la misma migración de 3 pasos que ya
+    documentaba `schema.sql` (ampliar el ENUM → migrar filas
+    `media_alta` → `alta` → angostar), sin perder datos.
+  - Los 17 festivos de `festivos_colombia` se siembran con `INSERT
+    IGNORE` (ya idempotente por la `UNIQUE` en `fecha`).
+  - **Antes de construirlo se auditó la base real** (`vsl_macondo`, solo
+    lectura, vía `information_schema`) columna por columna contra
+    `schema.sql`. Coincidían en todo **excepto una cosa**: `leads.empresa`
+    tenía `DEFAULT ''` en la base real, pero el `CREATE TABLE` base de
+    `schema.sql` no lo declaraba (ese default venía solo del `ALTER
+    TABLE` comentado de la Fase 11, nunca retro-aplicado a la definición
+    base). Se corrigió `schema.sql` para declarar ese default
+    directamente, así una base nueva creada por `migrate.js` queda
+    idéntica a `vsl_macondo` real.
+  - **Probado contra bases descartables** (nunca contra `vsl_macondo`
+    directamente): (a) base vacía → `migrate()` sin error, estructura
+    resultante idéntica columna por columna a la auditoría real; (b) esa
+    misma base corrida una segunda vez → cero cambios, cero líneas de log
+    de "agregando"/"migrando"; (c) una base reconstruyendo el estado real
+    pre-Fase 16 (sin `utm_term`/`reunion_fecha_hora`/`detalle`, ENUM
+    viejo de 3 valores, con un lead real en `prioridad='media_alta'`) →
+    `migrate()` agregó las columnas faltantes y corrió la migración de 3
+    pasos del ENUM, con el lead sobreviviendo con `prioridad` migrado
+    correctamente a `'alta'` sin pérdida de datos; corrida una segunda
+    vez sobre esa base ya convergida, cero cambios otra vez.
+  - `schema.sql` **se deja como está**, sirviendo de documentación humana
+    de la estructura completa — ya no hace falta copiarle bloques a mano,
+    pero sigue siendo la referencia legible de qué existe y por qué.
+
 ---
 
 ## 2. Verificaciones recientes y lecciones aprendidas
@@ -779,13 +890,13 @@ vacíos (0 bytes) — nadie ha pegado contenido ahí todavía.
 
 ## 3. Próximas fases (en orden)
 
-1. **Integración real de Vturb** en `VturbPlayer.jsx` — **bloqueada,
-   pendiente de que el PM entregue el código de embed** en
-   `reference/vturb-embed.txt` (hoy vacío, 0 bytes). No hay nada que
-   construir de este lado hasta que llegue ese contenido.
+1. ~~Integración real de Vturb en `VturbPlayer.jsx`~~ — **completada en la
+   Fase 19** (ver sección 1): video real embebido, patrón señuelo +
+   `MutationObserver`, botón "Reservar mi llamada" persistente.
 2. **Deploy** de `frontend/` y `backend/` a producción, por separado — sin
    definir ni probar todavía. Con el hardening de la Fase 8 (helmet, rate
-   limiting, CORS restringido) ya es un mejor punto de partida para esto.
+   limiting, CORS restringido) y la auto-migración de la Fase 19 ya es un
+   mejor punto de partida para esto.
 
 ---
 
@@ -934,15 +1045,15 @@ bloqueado por terceros o sin empezar.
   sección 1): columna `detalle` nueva en `respuestas_quiz`.
 - ~~`utm_term` no se muestra en `/crm/leads/:id`~~ — **resuelto** (se
   agregó a la tarjeta "Origen" del modal al convertirlo en la Fase 17).
-- **Migraciones `ALTER TABLE` sin confirmar como corridas contra
-  `vsl_macondo` real.** Van acumulándose varias columnas/ENUMs nuevos que
-  `schema.sql` documenta como bloques `ALTER TABLE` comentados (no se
-  ejecutan solos): el ENUM de `prioridad` de la Fase 16
-  (`vip`/`alta`/`media_baja`/`en_revision`), `utm_term` en `leads`/
-  `contactos`/`utm_urls` (Fase 16), y de la Fase 17,
-  `leads.reunion_fecha_hora` y `respuestas_quiz.detalle`. Sin estas
-  migraciones corridas, la funcionalidad correspondiente falla con un
-  error de base de datos en cuanto se use (`POST /leads` con prioridad
-  `vip`/`media_baja`, o `POST /calendar/agendar` con
-  `reunion_fecha_hora`). Confirmar con el usuario cuáles ya corrió antes
-  de dar por cerrado cualquier cierre de proyecto.
+- ~~Migraciones `ALTER TABLE` sin confirmar como corridas contra
+  `vsl_macondo` real.~~ — **resuelto en la Fase 19.** Se auditó la base
+  real contra `schema.sql` (columna por columna, vía `information_schema`,
+  solo lectura) y coincidía en todo salvo el `DEFAULT ''` de
+  `leads.empresa` (ya corregido en `schema.sql`) — es decir, todas estas
+  migraciones ya estaban corridas contra `vsl_macondo`, solo que sin
+  confirmar. Además, `backend/src/db/migrate.js` ahora aplica
+  automáticamente cualquier `ALTER TABLE`/`CREATE TABLE` que falte cada
+  vez que arranca el servidor (antes de `app.listen`, sin arrancar si
+  falla) — de ahora en adelante ya no depende de que alguien recuerde
+  correr SQL a mano ni de confirmar el estado de la base por auditoría
+  manual.
