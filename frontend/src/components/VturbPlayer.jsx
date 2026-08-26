@@ -8,11 +8,14 @@ import { useEffect } from 'react';
 const PLAYER_SCRIPT_SRC =
   'https://scripts.converteai.net/4fe20c2b-9840-4bf1-bc41-73e3d2c46b5a/players/6a8cd7ce205ee703bdef6eac/v4/player.js';
 
-// El clic sobre el área del video sigue abriendo nuestro popup del quiz
-// (ver LandingVSL.jsx) como control manual, independiente de la revelación
-// automática por el señuelo Vturb (ver id="abrir-formulario-vsl" en
-// LandingVSL.jsx).
-export default function VturbPlayer({ onClick }) {
+// Sin ningún listener de clic propio sobre el área del video: este div solo
+// posiciona el player real de Vturb. Un onClick/onClickCapture aquí captura
+// TODOS los clics dentro del área (incluyendo los controles nativos de
+// play/pausa de Vturb, no solo un CTA), abriendo el popup indiscriminadamente
+// — bug confirmado en producción. La apertura manual (solo para pruebas en
+// desarrollo) vive en el botón dev-only de VideoSection.jsx, fuera de esta
+// área, nunca superpuesto al player.
+export default function VturbPlayer() {
   useEffect(() => {
     if (document.querySelector(`script[src="${PLAYER_SCRIPT_SRC}"]`)) return;
     const script = document.createElement('script');
@@ -22,24 +25,7 @@ export default function VturbPlayer({ onClick }) {
   }, []);
 
   return (
-    <div
-      // onClickCapture (no onClick): el elemento real <vturb-smartplayer>
-      // maneja sus propios clics internamente y detiene la propagación antes
-      // de que llegue a un onClick normal (fase de burbuja) en este div —
-      // confirmado en vivo, el clic no abría el popup. La fase de captura
-      // se dispara antes que el player pueda detenerla.
-      onClickCapture={onClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick?.();
-        }
-      }}
-      role="button"
-      tabIndex={0}
-      aria-label="Reproducir video"
-      style={{ position: 'absolute', inset: 0 }}
-    >
+    <div style={{ position: 'absolute', inset: 0 }}>
       <vturb-smartplayer
         id="vid-6a8cd7ce205ee703bdef6eac"
         style={{ display: 'block', margin: '0 auto', width: '100%' }}
