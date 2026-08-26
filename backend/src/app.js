@@ -13,6 +13,10 @@ import contactosRouter from './routes/contactos.routes.js';
 
 const app = express();
 
+// Detrás de nginx: sin esto, express-rate-limit usa la IP de nginx para
+// todos los visitantes en vez de la IP real de cada uno.
+app.set('trust proxy', 1);
+
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
   .split(',')
   .map((origin) => origin.trim())

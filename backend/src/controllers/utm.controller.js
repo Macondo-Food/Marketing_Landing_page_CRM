@@ -1,6 +1,6 @@
 import pool from '../db/connection.js';
 
-const BASE_URL = 'https://www.macondosoftwares.com/vsl';
+const BASE_URL = 'https://crm.macondosoftwares.com';
 
 // utm_medium se deriva de la plataforma (utm_source), no lo manda el
 // cliente. Las 4 plataformas de pauta usan 'cpc' (convención estándar de
