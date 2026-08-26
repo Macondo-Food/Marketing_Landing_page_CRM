@@ -69,7 +69,7 @@ export default function Hero() {
           textWrap: 'pretty',
         }}
       >
-        Descubre cómo Macondo en partnert con Alibaba Cloud te eliminan los costos que no viste en la letra
+        Descubre cómo Macondo, en partnership con Alibaba Cloud, te eliminan los costos que no viste en la letra
         pequeña de transferencia de datos con una migración paulatina 1:1, cero costo de transición y soporte
         técnico humano en español.
       </p>

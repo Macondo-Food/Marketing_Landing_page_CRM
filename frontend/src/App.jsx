@@ -1,5 +1,4 @@
-import { BrowserRouter, Outlet, Route, Routes, useNavigate, useParams } from 'react-router-dom';
-import LandingVSL from './pages/LandingVSL.jsx';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import CRM from './pages/CRM.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Usuarios from './pages/Usuarios.jsx';
@@ -32,7 +31,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<LandingVSL />} />
+        <Route path="/" element={<Navigate to="/crm" replace />} />
         <Route element={<CrmLayout />}>
           <Route path="/crm" element={<CRM />} />
           <Route path="/crm/dashboard" element={<Dashboard />} />
