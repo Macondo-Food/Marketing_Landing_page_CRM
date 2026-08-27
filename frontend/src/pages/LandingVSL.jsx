@@ -6,6 +6,7 @@ import ClientsSection from '../components/ClientsSection.jsx';
 import Footer from '../components/Footer.jsx';
 import QuizPopup from '../components/QuizPopup.jsx';
 import { captureUtms } from '../utils/utm.js';
+import { loadMarketingPixels } from '../utils/marketingPixels.js';
 
 export default function LandingVSL() {
   const [isQuizOpen, setIsQuizOpen] = useState(false);
@@ -17,6 +18,9 @@ export default function LandingVSL() {
 
   useEffect(() => {
     captureUtms();
+    // Meta Pixel + LinkedIn Insight Tag: solo en la landing pública, nunca
+    // en /crm (ver marketingPixels.js).
+    loadMarketingPixels();
   }, []);
 
   // El panel de Vturb está configurado para revelar el elemento con id
