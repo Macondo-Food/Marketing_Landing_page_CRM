@@ -74,11 +74,13 @@ CREATE TABLE IF NOT EXISTS contactos (
 
 -- Usuarios del CRM (Fase de sistema de usuarios con roles). El primer admin
 -- se crea con backend/scripts/seed-admin.mjs, no manualmente.
+-- password_hash es NULL para usuarios creados vía Google Sign-In
+-- (no tienen password). Login normal usa bcrypt.compare contra este campo.
 CREATE TABLE IF NOT EXISTS usuarios (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(150) NOT NULL,
   email VARCHAR(150) NOT NULL UNIQUE,
-  password_hash VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255) NULL,
   rol ENUM('admin', 'vendedor') NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

@@ -86,7 +86,7 @@ const TABLES = [
         id INT AUTO_INCREMENT PRIMARY KEY,
         nombre VARCHAR(150) NOT NULL,
         email VARCHAR(150) NOT NULL UNIQUE,
-        password_hash VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255) NULL,
         rol ENUM('admin', 'vendedor') NOT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
@@ -218,6 +218,18 @@ async function columnExists(table, column) {
 // es un valor válido del ENUM final, así que hay que ampliar el ENUM antes
 // de poder migrar esas filas, y solo angostarlo después de que ya no quede
 // ninguna fila que dependa del valor viejo.
+async function ensurePasswordHashNullable() {
+  const [rows] = await pool.query(
+    `SELECT IS_NULLABLE FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'password_hash'`
+  );
+  if (rows[0]?.IS_NULLABLE === 'YES') return;
+
+  console.log('[migrate] usuarios.password_hash es NOT NULL, cambiando a NULL (login con Google)...');
+  await pool.query('ALTER TABLE usuarios MODIFY COLUMN password_hash VARCHAR(255) NULL');
+  console.log('[migrate] usuarios.password_hash ahora es NULL');
+}
+
 async function ensurePrioridadEnum() {
   const [rows] = await pool.query(
     `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
@@ -251,6 +263,7 @@ export default async function migrate() {
   }
 
   await ensurePrioridadEnum();
+  await ensurePasswordHashNullable();
 
   await pool.query(FESTIVOS_SEED_SQL);
 
