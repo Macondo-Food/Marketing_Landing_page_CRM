@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from 'react';
-import { loginRequest } from '../services/api.js';
+import { loginRequest, loginGoogleRequest } from '../services/api.js';
 
 const AuthContext = createContext(null);
 
@@ -13,13 +13,19 @@ export function AuthProvider({ children }) {
     setUsuario(data.usuario);
   }
 
+  async function loginGoogle(idToken) {
+    const data = await loginGoogleRequest(idToken);
+    setToken(data.token);
+    setUsuario(data.usuario);
+  }
+
   function logout() {
     setToken(null);
     setUsuario(null);
   }
 
   return (
-    <AuthContext.Provider value={{ token, usuario, login, logout }}>
+    <AuthContext.Provider value={{ token, usuario, login, loginGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

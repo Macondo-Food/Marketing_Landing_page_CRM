@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import '../styles/crm.css';
 
@@ -23,12 +23,57 @@ const labelStyle = {
   color: '#6B6B6B',
 };
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
 export default function Login() {
-  const { login } = useAuth();
+  const { login, loginGoogle } = useAuth();
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [status, setStatus] = useState('idle'); // idle | loading | error
   const [error, setError] = useState('');
+  const googleBtnRef = useRef(null);
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !googleBtnRef.current) return;
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+
+    script.onload = () => {
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+        auto_select: false,
+      });
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        text: 'signin_with',
+        shape: 'rectangular',
+        logo_alignment: 'left',
+        width: googleBtnRef.current.offsetWidth || 304,
+      });
+    };
+
+    return () => {
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+  }, []);
+
+  async function handleGoogleCredential(response) {
+    setStatus('loading');
+    setError('');
+    try {
+      await loginGoogle(response.credential);
+    } catch (err) {
+      setError(err.message);
+      setStatus('error');
+    }
+  }
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -139,6 +184,31 @@ export default function Login() {
         >
           {status === 'loading' ? 'Entrando…' : 'Entrar'}
         </button>
+
+        {GOOGLE_CLIENT_ID && (
+          <>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                margin: '20px 0',
+                color: '#999',
+                fontSize: 12,
+                fontFamily: "'Source Sans 3', system-ui, sans-serif",
+              }}
+            >
+              <div style={{ flex: 1, height: 1, background: '#E4E4E7' }} />
+              <span>o</span>
+              <div style={{ flex: 1, height: 1, background: '#E4E4E7' }} />
+            </div>
+
+            <div
+              ref={googleBtnRef}
+              style={{ display: 'flex', justifyContent: 'center' }}
+            />
+          </>
+        )}
       </form>
     </div>
   );

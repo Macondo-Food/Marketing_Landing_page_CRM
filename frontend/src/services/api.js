@@ -57,6 +57,15 @@ export function loginRequest(usuario, password) {
   });
 }
 
+// (idToken) -> { token, usuario: { id, nombre, rol } }
+export function loginGoogleRequest(idToken) {
+  return request('/auth/google', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+  });
+}
+
 // (token) -> [{ id, nombre, email, telefono, utm_source, ..., estado, created_at }, ...]
 export function getLeads(token) {
   return request('/leads', {
