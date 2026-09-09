@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS leads (
   ) NOT NULL,
   calendar_event_id VARCHAR(255) NULL,
   reunion_fecha_hora DATETIME NULL,
+  landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS contactos (
   contactado BOOLEAN NOT NULL DEFAULT FALSE,
   tratamiento_datos_aceptado BOOLEAN NOT NULL DEFAULT FALSE,
   tratamiento_datos_fecha DATETIME NULL,
+  landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -97,6 +99,7 @@ CREATE TABLE IF NOT EXISTS utm_urls (
   utm_campaign VARCHAR(150) NOT NULL,
   utm_content VARCHAR(150) NULL,
   utm_term VARCHAR(150) NULL,
+  landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo',
   creado_por INT NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_utm_urls_usuario
@@ -208,3 +211,13 @@ INSERT IGNORE INTO festivos_colombia (fecha, descripcion) VALUES
 -- configurado — ver ESTADO_ACTUAL.md. Nullable, no rompe filas existentes.
 --
 -- ALTER TABLE respuestas_quiz ADD COLUMN detalle TEXT NULL AFTER descalifica;
+
+-- ---------------------------------------------------------------------------
+-- Migración multi-landing: columna `landing` nueva en leads, contactos y
+-- utm_urls. Identifica de cuál landing vino cada lead/contacto o a cuál
+-- landing apunta cada URL generada. DEFAULT 'vsl-macondo' para que los
+-- registros existentes (todos de la landing original) queden consistentes.
+-- ---------------------------------------------------------------------------
+-- ALTER TABLE leads ADD COLUMN landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo' AFTER reunion_fecha_hora;
+-- ALTER TABLE contactos ADD COLUMN landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo' AFTER tratamiento_datos_fecha;
+-- ALTER TABLE utm_urls ADD COLUMN landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo' AFTER utm_term;

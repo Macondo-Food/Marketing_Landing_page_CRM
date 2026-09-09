@@ -1,18 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header.jsx';
 import Hero from '../components/Hero.jsx';
 import VideoSection from '../components/VideoSection.jsx';
 import ClientsSection from '../components/ClientsSection.jsx';
 import Footer from '../components/Footer.jsx';
-import QuizPopup from '../components/QuizPopup.jsx';
 import { captureUtms } from '../utils/utm.js';
 import { loadMarketingPixels } from '../utils/marketingPixels.js';
 
 export default function LandingVSL() {
-  const [isQuizOpen, setIsQuizOpen] = useState(false);
+  const navigate = useNavigate();
   // Una vez Vturb revela el señuelo (ver decoyRef más abajo), el botón
-  // "Reservar mi llamada" queda visible para siempre, aunque el usuario
-  // cierre el popup.
+  // "Reservar mi llamada" queda visible para siempre.
   const [hasRevealed, setHasRevealed] = useState(false);
   const decoyRef = useRef(null);
 
@@ -49,7 +48,6 @@ export default function LandingVSL() {
 
     const observer = new MutationObserver(() => {
       if (getComputedStyle(decoy).display === 'none') return;
-      setIsQuizOpen(true);
       setHasRevealed(true);
       observer.disconnect();
     });
@@ -70,23 +68,22 @@ export default function LandingVSL() {
       <Header />
       <Hero />
       <VideoSection
-        onPlayClick={() => setIsQuizOpen(true)}
+        onFormClick={() => navigate('/form')}
         showReserveButton={hasRevealed}
-        onReserveClick={() => setIsQuizOpen(true)}
       />
       <ClientsSection />
       <Footer />
       {/* Señuelo para el panel de Vturb: no es visible ni se renderiza con
           contenido propio, solo existe para que el CTA configurado en Vturb
           tenga un id real que revelar en el minuto 8:15-9:35 (ver el efecto
-          de arriba). El popup real (QuizPopup) nunca comparte este nodo. */}
+          de arriba). Al revelarse, muestra el botón "Reservar mi llamada"
+          que navega a /form. */}
       <div
         id="abrir-formulario-vsl"
         ref={decoyRef}
         aria-hidden="true"
         style={{ position: 'fixed', top: 0, left: 0, width: 0, height: 0, overflow: 'hidden' }}
       />
-      <QuizPopup isOpen={isQuizOpen} onClose={() => setIsQuizOpen(false)} />
     </div>
   );
 }

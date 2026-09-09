@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getLeads, updateLeadEstado } from '../services/api.js';
+import { LANDINGS } from '../utils/landings.js';
 import Login from './Login.jsx';
 import LeadDetalle from './LeadDetalle.jsx';
 import '../styles/crm.css';
@@ -46,6 +47,8 @@ const PRIORIDAD_COLORS = {
   media_baja: { bg: 'rgba(202,138,4,.15)', text: '#CA8A04' },
   en_revision: { bg: 'rgba(107,107,107,.12)', text: '#6B6B6B' },
 };
+
+const LANDING_LABELS = Object.fromEntries(LANDINGS.map((l) => [l.id, l.nombre]));
 
 function Badge({ label, color }) {
   return (
@@ -141,11 +144,12 @@ function Dashboard() {
   const [savingId, setSavingId] = useState(null);
   const [rowErrors, setRowErrors] = useState({});
   const [leadSeleccionadoId, setLeadSeleccionadoId] = useState(null);
+  const [filtroLanding, setFiltroLanding] = useState('');
 
   const loadLeads = useCallback(() => {
     setStatus('loading');
     setError('');
-    return getLeads(token)
+    return getLeads(token, filtroLanding || undefined)
       .then((data) => {
         setLeads(data);
         setStatus('ready');
@@ -158,7 +162,7 @@ function Dashboard() {
         setError(err.message);
         setStatus('error');
       });
-  }, [token, logout]);
+  }, [token, logout, filtroLanding]);
 
   useEffect(() => {
     loadLeads();
@@ -251,6 +255,21 @@ function Dashboard() {
         </p>
       )}
 
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginRight: 8 }}>Landing:</label>
+        <select
+          className="crm-select"
+          value={filtroLanding}
+          onChange={(e) => setFiltroLanding(e.target.value)}
+          style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #DADADE', fontSize: 12 }}
+        >
+          <option value="">Todas</option>
+          {LANDINGS.map((l) => (
+            <option key={l.id} value={l.id}>{l.nombre}</option>
+          ))}
+        </select>
+      </div>
+
       {status === 'loading' && <p style={{ color: '#6B6B6B' }}>Cargando leads…</p>}
 
       {status === 'error' && (
@@ -296,6 +315,7 @@ function Dashboard() {
                 <th style={thStyle}>Nombre</th>
                 <th style={thStyle}>Email</th>
                 <th style={thStyle}>Teléfono</th>
+                <th style={thStyle}>Landing</th>
                 <th style={thStyle}>Prioridad</th>
                 <th style={thStyle}>Estado</th>
                 <th style={thStyle}>Fecha</th>
@@ -325,6 +345,7 @@ function Dashboard() {
                   </td>
                   <td style={tdStyle}>{lead.email}</td>
                   <td style={tdStyle}>{lead.telefono}</td>
+                  <td style={tdStyle}>{LANDING_LABELS[lead.landing] ?? lead.landing}</td>
                   <td style={tdStyle}>
                     <PrioridadBadge prioridad={lead.prioridad} />
                   </td>

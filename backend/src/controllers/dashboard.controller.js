@@ -15,14 +15,22 @@ function round1(n) {
 
 export async function getDashboard(req, res) {
   try {
-    const [[{ totalLeads }]] = await pool.query('SELECT COUNT(*) AS totalLeads FROM leads');
+    const { landing } = req.query;
+    const whereLanding = landing ? 'WHERE landing = ?' : '';
+    const landingParam = landing ? [landing] : [];
+
+    const [[{ totalLeads }]] = await pool.query(
+      `SELECT COUNT(*) AS totalLeads FROM leads ${whereLanding}`,
+      landingParam
+    );
     const [[{ calificados }]] = await pool.query(
-      'SELECT COUNT(*) AS calificados FROM leads WHERE calificado = 1'
+      `SELECT COUNT(*) AS calificados FROM leads ${landing ? 'WHERE landing = ? AND calificado = 1' : 'WHERE calificado = 1'}`,
+      landingParam
     );
     const placeholders = ESTADOS_AGENDADO_O_SUPERIOR.map(() => '?').join(',');
     const [[{ agendadosOSuperior }]] = await pool.query(
-      `SELECT COUNT(*) AS agendadosOSuperior FROM leads WHERE estado IN (${placeholders})`,
-      ESTADOS_AGENDADO_O_SUPERIOR
+      `SELECT COUNT(*) AS agendadosOSuperior FROM leads WHERE estado IN (${placeholders})${landing ? ' AND landing = ?' : ''}`,
+      [...ESTADOS_AGENDADO_O_SUPERIOR, ...landingParam]
     );
 
     const total = Number(totalLeads);
@@ -41,11 +49,14 @@ export async function getDashboard(req, res) {
 
     // El % de cada respuesta se calcula sobre el total de leads que
     // respondieron ESA pregunta, no sobre el total general de leads.
+    // Si hay filtro por landing, solo se cuentan respuestas de leads de esa landing.
     const [rows] = await pool.query(
-      `SELECT pregunta, respuesta, COUNT(*) AS total
-       FROM respuestas_quiz
-       GROUP BY pregunta, respuesta
-       ORDER BY pregunta, total DESC`
+      `SELECT rq.pregunta, rq.respuesta, COUNT(*) AS total
+       FROM respuestas_quiz rq
+       ${landing ? 'JOIN leads l ON l.id = rq.lead_id WHERE l.landing = ?' : ''}
+       GROUP BY rq.pregunta, rq.respuesta
+       ORDER BY rq.pregunta, total DESC`,
+      landingParam
     );
 
     const totalesPorPregunta = {};
@@ -79,6 +90,7 @@ export async function getDashboard(req, res) {
 // agrupamiento en sí.
 export async function getCampanas(req, res) {
   try {
+    const { landing } = req.query;
     const placeholders = ESTADOS_AGENDADO_O_SUPERIOR.map(() => '?').join(',');
     const [rows] = await pool.query(
       `SELECT
@@ -88,9 +100,10 @@ export async function getCampanas(req, res) {
          SUM(calificado = 1) AS calificados,
          SUM(estado IN (${placeholders})) AS agendados
        FROM leads
+       ${landing ? 'WHERE landing = ?' : ''}
        GROUP BY utm_source, utm_campaign
        ORDER BY total DESC`,
-      ESTADOS_AGENDADO_O_SUPERIOR
+      [...ESTADOS_AGENDADO_O_SUPERIOR, ...(landing ? [landing] : [])]
     );
 
     const campanas = rows.map((row) => {

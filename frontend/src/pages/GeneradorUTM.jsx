@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { createUtmUrl, getUtmUrls } from '../services/api.js';
+import { LANDINGS } from '../utils/landings.js';
 import Login from './Login.jsx';
 import '../styles/crm.css';
 
@@ -14,6 +15,7 @@ const PLATAFORMAS = [
 ];
 
 const PLATAFORMA_LABELS = Object.fromEntries(PLATAFORMAS.map((p) => [p.value, p.label]));
+const LANDING_LABELS = Object.fromEntries(LANDINGS.map((l) => [l.id, l.nombre]));
 
 const thStyle = {
   textAlign: 'left',
@@ -122,6 +124,7 @@ function formatFecha(isoString) {
 
 function GeneradorUTMView() {
   const { token, logout } = useAuth();
+  const [landing, setLanding] = useState(LANDINGS[0].id);
   const [plataforma, setPlataforma] = useState(PLATAFORMAS[0].value);
   const [campana, setCampana] = useState('');
   const [contenido, setContenido] = useState('');
@@ -164,6 +167,7 @@ function GeneradorUTMView() {
     setFormError('');
 
     createUtmUrl(token, {
+      landing,
       utm_source: plataforma,
       utm_campaign: campana.trim(),
       utm_content: contenido.trim() || undefined,
@@ -244,6 +248,21 @@ function GeneradorUTMView() {
           alignItems: 'end',
         }}
       >
+        <div>
+          <label style={labelStyle}>Landing</label>
+          <select
+            className="crm-select"
+            style={{ ...inputStyle, padding: '10px 12px' }}
+            value={landing}
+            onChange={(e) => setLanding(e.target.value)}
+          >
+            {LANDINGS.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <label style={labelStyle}>Plataforma</label>
           <select
@@ -364,6 +383,7 @@ function GeneradorUTMView() {
             <thead>
               <tr>
                 <th style={thStyle}>URL</th>
+                <th style={thStyle}>Landing</th>
                 <th style={thStyle}>Plataforma</th>
                 <th style={thStyle}>Campaña</th>
                 <th style={thStyle}>Creado por</th>
@@ -377,6 +397,7 @@ function GeneradorUTMView() {
                   <td style={tdStyle} title={h.url_completa}>
                     {h.url_completa}
                   </td>
+                  <td style={tdStyle}>{LANDING_LABELS[h.landing] ?? h.landing}</td>
                   <td style={tdStyle}>{PLATAFORMA_LABELS[h.utm_source] ?? h.utm_source}</td>
                   <td style={tdStyle}>{h.utm_campaign}</td>
                   <td style={tdStyle}>{h.creado_por_nombre}</td>

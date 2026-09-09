@@ -2,8 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getContactos, updateContactoContactado } from '../services/api.js';
+import { LANDINGS } from '../utils/landings.js';
 import Login from './Login.jsx';
 import '../styles/crm.css';
+
+const LANDING_LABELS = Object.fromEntries(LANDINGS.map((l) => [l.id, l.nombre]));
 
 const thStyle = {
   textAlign: 'left',
@@ -79,11 +82,12 @@ function ContactosView() {
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState(null);
   const [rowErrors, setRowErrors] = useState({});
+  const [filtroLanding, setFiltroLanding] = useState('');
 
   const loadContactos = useCallback(() => {
     setStatus('loading');
     setError('');
-    return getContactos(token)
+    return getContactos(token, filtroLanding || undefined)
       .then((data) => {
         setContactos(data);
         setStatus('ready');
@@ -96,7 +100,7 @@ function ContactosView() {
         setError(err.message);
         setStatus('error');
       });
-  }, [token, logout]);
+  }, [token, logout, filtroLanding]);
 
   useEffect(() => {
     loadContactos();
@@ -169,6 +173,21 @@ function ContactosView() {
         </div>
       </div>
 
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginRight: 8 }}>Landing:</label>
+        <select
+          className="crm-select"
+          value={filtroLanding}
+          onChange={(e) => setFiltroLanding(e.target.value)}
+          style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #DADADE', fontSize: 12 }}
+        >
+          <option value="">Todas</option>
+          {LANDINGS.map((l) => (
+            <option key={l.id} value={l.id}>{l.nombre}</option>
+          ))}
+        </select>
+      </div>
+
       {status === 'loading' && <p style={{ color: '#6B6B6B' }}>Cargando contactos…</p>}
 
       {status === 'error' && (
@@ -215,6 +234,7 @@ function ContactosView() {
                 <th style={thStyle}>Email</th>
                 <th style={thStyle}>Teléfono</th>
                 <th style={thStyle}>Empresa</th>
+                <th style={thStyle}>Landing</th>
                 <th style={thStyle}>Motivo de descalificación</th>
                 <th style={thStyle}>Contactado</th>
                 <th style={thStyle}>Fecha</th>
@@ -228,6 +248,7 @@ function ContactosView() {
                   <td style={tdStyle}>{c.email}</td>
                   <td style={tdStyle}>{c.telefono}</td>
                   <td style={tdStyle}>{c.empresa}</td>
+                  <td style={tdStyle}>{LANDING_LABELS[c.landing] ?? c.landing}</td>
                   <td style={{ ...tdStyle, maxWidth: 320 }}>{c.motivo_descalificacion ?? '—'}</td>
                   <td style={tdStyle}>
                     <ContactadoBadge contactado={Boolean(c.contactado)} />

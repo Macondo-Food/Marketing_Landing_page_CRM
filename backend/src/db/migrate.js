@@ -37,6 +37,7 @@ const TABLES = [
         ) NOT NULL,
         calendar_event_id VARCHAR(255) NULL,
         reunion_fecha_hora DATETIME NULL,
+        landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo',
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `,
@@ -75,6 +76,7 @@ const TABLES = [
         contactado BOOLEAN NOT NULL DEFAULT FALSE,
         tratamiento_datos_aceptado BOOLEAN NOT NULL DEFAULT FALSE,
         tratamiento_datos_fecha DATETIME NULL,
+        landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo',
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `,
@@ -103,6 +105,7 @@ const TABLES = [
         utm_campaign VARCHAR(150) NOT NULL,
         utm_content VARCHAR(150) NULL,
         utm_term VARCHAR(150) NULL,
+        landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo',
         creado_por INT NOT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT fk_utm_urls_usuario
@@ -177,6 +180,21 @@ const COLUMN_MIGRATIONS = [
     table: 'respuestas_quiz',
     column: 'detalle',
     addSql: `ALTER TABLE respuestas_quiz ADD COLUMN detalle TEXT NULL AFTER descalifica`,
+  },
+  {
+    table: 'leads',
+    column: 'landing',
+    addSql: `ALTER TABLE leads ADD COLUMN landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo' AFTER reunion_fecha_hora`,
+  },
+  {
+    table: 'contactos',
+    column: 'landing',
+    addSql: `ALTER TABLE contactos ADD COLUMN landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo' AFTER tratamiento_datos_fecha`,
+  },
+  {
+    table: 'utm_urls',
+    column: 'landing',
+    addSql: `ALTER TABLE utm_urls ADD COLUMN landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo' AFTER utm_term`,
   },
 ];
 

@@ -39,16 +39,3 @@ a:hover {
     animation: none;
   }
 }
-
-/* Overlay del quiz: permanece siempre montado en el DOM (ver QuizPopup.jsx),
-   controlado únicamente por el estado de React (isOpen) — Vturb nunca toca
-   este nodo directamente, solo el señuelo aparte en LandingVSL.jsx. El
-   "display: flex" base vive aquí (no inline en el componente) para no
-   repetirlo en cada toggle. */
-.quiz-popup-overlay {
-  display: flex;
-}
-
-.quiz-popup-overlay.quiz-popup-hidden {
-  display: none;
-}

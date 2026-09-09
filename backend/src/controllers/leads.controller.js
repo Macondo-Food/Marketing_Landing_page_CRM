@@ -17,6 +17,7 @@ export async function createLead(req, res) {
     tratamiento_datos_aceptado: tratamientoDatosAceptado,
     utms = {},
     respuestas,
+    landing,
   } = req.body ?? {};
 
   if (typeof nombre !== 'string' || !nombre.trim()) {
@@ -34,6 +35,9 @@ export async function createLead(req, res) {
   if (tratamientoDatosAceptado !== true) {
     return res.status(400).json({ error: 'Debes aceptar el tratamiento de datos personales' });
   }
+  if (typeof landing !== 'string' || !landing.trim()) {
+    return res.status(400).json({ error: 'landing es requerida' });
+  }
 
   let calificado;
   let prioridad;
@@ -50,6 +54,7 @@ export async function createLead(req, res) {
     return res.status(400).json({ error: err.message });
   }
 
+  const landingTrimmed = landing.trim();
   const datosContacto = [
     nombre.trim(),
     email.trim(),
@@ -60,6 +65,7 @@ export async function createLead(req, res) {
     utms.utm_campaign ?? null,
     utms.utm_content ?? null,
     utms.utm_term ?? null,
+    landingTrimmed,
   ];
   const tratamientoDatosFecha = new Date();
   const contactoWebhook = {
@@ -73,9 +79,9 @@ export async function createLead(req, res) {
     try {
       const [result] = await pool.execute(
         `INSERT INTO contactos
-          (nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
+          (nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term, landing,
            motivo_descalificacion, tratamiento_datos_aceptado, tratamiento_datos_fecha)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [...datosContacto, motivoDescalificacion, true, tratamientoDatosFecha]
       );
       enviarWebhookLead({
@@ -100,9 +106,9 @@ export async function createLead(req, res) {
 
     const [leadResult] = await connection.execute(
       `INSERT INTO leads
-        (nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
+        (nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term, landing,
          calificado, prioridad, tratamiento_datos_aceptado, tratamiento_datos_fecha, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         ...datosContacto,
         true,
@@ -234,7 +240,7 @@ export async function getLeadDetalle(req, res) {
 
   try {
     const [leadRows] = await pool.execute(
-      `SELECT id, nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
+      `SELECT id, nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term, landing,
               calificado, prioridad, estado, calendar_event_id, reunion_fecha_hora, created_at
        FROM leads
        WHERE id = ?`,
@@ -258,12 +264,17 @@ export async function getLeadDetalle(req, res) {
 
 export async function listLeads(req, res) {
   try {
-    const [rows] = await pool.execute(
-      `SELECT id, nombre, email, telefono, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
-              calificado, prioridad, estado, calendar_event_id, created_at
-       FROM leads
-       ORDER BY created_at DESC`
-    );
+    const { landing } = req.query;
+    let sql = `SELECT id, nombre, email, telefono, utm_source, utm_medium, utm_campaign, utm_content, utm_term, landing,
+                      calificado, prioridad, estado, calendar_event_id, created_at
+               FROM leads`;
+    const params = [];
+    if (landing) {
+      sql += ' WHERE landing = ?';
+      params.push(landing);
+    }
+    sql += ' ORDER BY created_at DESC';
+    const [rows] = await pool.execute(sql, params);
     res.json(rows);
   } catch (err) {
     console.error('[leads] error al listar leads:', err);

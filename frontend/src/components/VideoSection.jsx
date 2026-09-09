@@ -28,7 +28,7 @@ const devButtonStyle = {
   letterSpacing: '.06em',
 };
 
-export default function VideoSection({ onPlayClick, showReserveButton, onReserveClick }) {
+export default function VideoSection({ onFormClick, showReserveButton }) {
   return (
     <section style={{ maxWidth: 1020, margin: '0 auto', padding: '44px 24px 0' }}>
       <div
@@ -45,20 +45,20 @@ export default function VideoSection({ onPlayClick, showReserveButton, onReserve
         </div>
       </div>
       {/* Solo existe en el bundle de desarrollo (import.meta.env.DEV se
-          elimina en `vite build` de producción) — sirve para abrir el quiz
-          manualmente sin esperar al minuto 8:15 del video mientras se
+          elimina en `vite build` de producción) — sirve para navegar al
+          formulario sin esperar al minuto 8:15 del video mientras se
           prueba. Nunca se superpone al área del player, así que nunca
           intercepta sus controles nativos. */}
       {import.meta.env.DEV && (
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
-          <button onClick={onPlayClick} style={devButtonStyle}>
-            Abrir quiz (solo desarrollo)
+          <button onClick={onFormClick} style={devButtonStyle}>
+            Ir al formulario (solo desarrollo)
           </button>
         </div>
       )}
       {showReserveButton && (
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
-          <button onClick={onReserveClick} style={reserveButtonStyle}>
+          <button onClick={onFormClick} style={reserveButtonStyle}>
             Reservar mi llamada
           </button>
         </div>

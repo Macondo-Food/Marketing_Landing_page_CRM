@@ -2,12 +2,17 @@ import pool from '../db/connection.js';
 
 export async function listContactos(req, res) {
   try {
-    const [rows] = await pool.execute(
-      `SELECT id, nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term,
-              motivo_descalificacion, contactado, created_at
-       FROM contactos
-       ORDER BY created_at DESC`
-    );
+    const { landing } = req.query;
+    let sql = `SELECT id, nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term, landing,
+                      motivo_descalificacion, contactado, created_at
+               FROM contactos`;
+    const params = [];
+    if (landing) {
+      sql += ' WHERE landing = ?';
+      params.push(landing);
+    }
+    sql += ' ORDER BY created_at DESC';
+    const [rows] = await pool.execute(sql, params);
     res.json(rows);
   } catch (err) {
     console.error('[contactos] error al listar contactos:', err);
