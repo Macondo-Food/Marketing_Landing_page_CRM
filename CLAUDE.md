@@ -1,6 +1,6 @@
 # Bitácora de estado — Proyecto VSL Macondo
 
-Última actualización: 2026-08-26.
+Última actualización: 2026-09-08.
 
 Este archivo es un resumen del estado real del código para retomar el trabajo
 sin tener que releer toda la conversación. La fuente de verdad del **diseño
@@ -11,6 +11,15 @@ medias**.
 **Nota sobre nombres de carpetas:** `plan-proyecto-vsl.md` (sección 5) usa
 `front/` y `back/` en los diagramas, pero el proyecto real usa
 `frontend/` y `backend/`. Todo lo construido está en esas dos carpetas.
+
+---
+
+## Landings de publicidad
+
+Antes de crear una landing nueva, **leer `CONVENCION_LANDINGS.md`** en la
+raíz del proyecto. Contiene los pasos, convenciones y estructura obligatoria
+para crear landings de campañas de marketing. Cada landing es un archivo
+autocontenido en `pages/` — no se comparten componentes entre landings.
 
 ---
 
@@ -781,14 +790,35 @@ medias**.
   amarillo que el resto de la landing, y **no vuelve a ocultarse** aunque
   el usuario cierre el popup — reabre el mismo popup, centrado y cerrable
   normalmente (X, clic afuera, Escape).
-- **Clic manual en el video corregido.** El `<vturb-smartplayer>` real
-  intercepta el clic y detiene su propagación antes de llegar a un
-  `onClick` normal (fase de burbuja) — se comprobó en vivo que el clic ya
-  no abría el popup con el player real instalado (sí funcionaba con el
-  placeholder viejo). `VturbPlayer.jsx` usa `onClickCapture` en vez de
-  `onClick` (fase de captura, se dispara antes de que el player pueda
-  detener el evento) para que el clic manual siga funcionando como
-  mecanismo de apertura independiente del CTA de Vturb.
+- **Clic manual en el video (intento inicial, luego corregido — ver el bug
+  crítico más abajo).** El `<vturb-smartplayer>` real intercepta el clic y
+  detiene su propagación antes de llegar a un `onClick` normal (fase de
+  burbuja) — se comprobó en vivo que el clic ya no abría el popup con el
+  player real instalado (sí funcionaba con el placeholder viejo). La
+  primera solución fue poner `onClickCapture` en vez de `onClick` en
+  `VturbPlayer.jsx` (fase de captura, se dispara antes de que el player
+  pueda detener el evento) — **este enfoque resultó tener un bug crítico
+  en producción, ver el punto siguiente.**
+- **Bug crítico en producción y corrección urgente (commit `945849e`,
+  misma fecha).** El `onClickCapture` de arriba estaba puesto sobre el
+  `<div>` que cubre **todo** el área del video
+  (`position: absolute; inset: 0`), así que en fase de captura interceptaba
+  **cualquier** clic ahí dentro — incluyendo los controles nativos de
+  play/pausa del player real de Vturb, no solo un intento de abrir el
+  quiz — y disparaba `onClick` (abrir el popup) en cada uno. Detectado por
+  el usuario en una demo en vivo con el cliente (cualquier interacción con
+  el video abría el quiz). Corrección: se quitó el listener de clic por
+  completo de `VturbPlayer.jsx` — el área del video ya no tiene ningún
+  `onClick`/`onClickCapture`, queda 100% libre para los controles nativos
+  del player. El disparador manual para pruebas se movió a un botón
+  aparte en `frontend/src/components/VideoSection.jsx`
+  ("Abrir quiz (solo desarrollo)"), gateado por `import.meta.env.DEV` y
+  **sin superponerse nunca al video** — confirmado con `npm run build`
+  que el texto del botón no queda en el bundle de producción (Vite
+  elimina el bloque por dead-code elimination). Verificado en vivo tras el
+  fix: clic sobre el video ya no abre nada, el botón dev sí abre el popup
+  centrado, y el flujo de señuelo + `MutationObserver` + botón "Reservar
+  mi llamada" (ver el punto de arriba) sigue intacto.
 - **Reporte "Rendimiento por campaña" en el dashboard** (`GET
   /dashboard/campanas`, `dashboard.controller.js` + `dashboard.routes.js`,
   protegido con el mismo `requireAuth` genérico que `GET /dashboard`):
@@ -844,6 +874,120 @@ medias**.
     de la estructura completa — ya no hace falta copiarle bloques a mano,
     pero sigue siendo la referencia legible de qué existe y por qué.
 
+### Fase 20 — Favicon y slider de logos de clientes (landing)
+
+- **Favicon:** `frontend/public/favicon.ico` (nuevo, multi-tamaño
+  16/32/48/64) generado a partir de `macondo-logo.png` con Pillow,
+  centrado sobre un lienzo cuadrado transparente para no deformar el
+  logo. `frontend/index.html` gana
+  `<link rel="icon" href="/favicon.ico" sizes="any" />` — antes no había
+  ningún favicon configurado.
+- **Logos nuevos de clientes:** 6 logos nuevos en
+  `frontend/src/assets/` (`claro-logo`, `gov-lab-logo`,
+  `manizales-logo`, `toka-logo`, `universidad-sabana-logo`,
+  `whale-cloud-logo`), todos con fondo transparente verificado. Sus
+  versiones `.webp` generadas para optimización. Alibaba no se tocó
+  (vive en `Hero.jsx` como badge de partner).
+- **Logos placeholder eliminados:** los 6 archivos `cliente-1` a
+  `cliente-6` (y sus `.webp`) se eliminaron de `frontend/src/assets/`.
+- **`ClientsSection.jsx`** pasó de grilla estática a **marquee
+  horizontal continuo** con los 6 logos reales (sin dependencias
+  nuevas): la lista se duplica y se anima con `translateX(-50%)`
+  (`@keyframes clients-marquee` en `index.css`). Se pausa con `:hover`
+  y se desactiva con `prefers-reduced-motion`.
+- Verificado con `pnpm build` sin errores. Commits `67bfb00` y
+  `cc7c674`.
+
+### Fase 21 — Pixels de marketing (Meta Pixel + LinkedIn Insight Tag)
+
+- **Meta Pixel** y **LinkedIn Insight Tag** integrados en la landing.
+  Los scripts se cargan condicionalmente **solo en la landing**
+  (`LandingVSL.jsx`), no en las rutas del CRM (`/crm/*`).
+- Meta Pixel: `<script>` en el `<head>` de `index.html` + `<noscript>`
+  con la imagen de tracking en el `<body>`.
+- LinkedIn Insight Tag: `<script>` antes del cierre de `<body>`.
+- La carga condicional (solo en la landing, no en el CRM) se implementó
+  para que las visitas internas al CRM no inflen las métricas de
+  publicidad.
+- Commits `4d7f9dc`, `cce1ae9`, `80aeca4`, `5b66ac1`.
+
+### Fase 22 — Inicio de sesión con Google Sign-In
+
+- **Botón "Continuar con Google"** agregado a la pantalla de login del
+  CRM. Solo acepta correos del dominio `@macondosoftwares.com`. Si el
+  usuario no existe en la tabla `usuarios`, se crea automáticamente
+  como `vendedor`. El login actual (usuario/password) sigue
+  disponible como fallback.
+- **Backend (`auth.controller.js`):** nuevo handler `loginGoogle(req,
+  res)` que verifica el `id_token` de Google con `OAuth2Client` de
+  `google-auth-library` (dependencia nueva, usa el mismo
+  `GOOGLE_CLIENT_ID` que ya existía para Calendar). Extrae `email`,
+  `name` y `hd` (hosted domain) del payload verificado. Valida
+  `hd === 'macondosoftwares.com` (`403` si no). Busca el usuario por
+  email; si no existe, lo crea con `rol = 'vendedor'` y
+  `password_hash = NULL`. Firma el mismo JWT que el login normal —
+  el frontend no distingue el origen.
+- **Ruta:** `POST /auth/google` (`auth.routes.js`), protegida con el
+  mismo `loginLimiter` (5 intentos / 15 min).
+- **Schema:** `usuarios.password_hash` modificado a `NULL` (los
+  usuarios de Google no tienen password). Migración en `migrate.js`.
+- **Frontend (`Login.jsx`):** carga Google Identity Services (GIS)
+  con un `useEffect`, renderiza el botón oficial de Google con
+  `google.accounts.id.renderButton()` debajo del botón "Entrar",
+  separado por un divisor visual ("— o —"). Callback recibe el
+  `credential` (id_token) y llama a `loginGoogle()` del AuthContext.
+- **AuthContext:** nuevo método `loginGoogle(idToken)`.
+- **api.js:** nueva función `loginGoogleRequest(idToken)`.
+- **Variable de entorno nueva:** `VITE_GOOGLE_CLIENT_ID`
+  (`frontend/.env`) — el mismo Client ID del backend, necesario para
+  inicializar GIS en el frontend.
+- **Seguridad:** el `hd` verificado por Google garantiza que el correo
+  es de Workspace del dominio correcto (no basta con que termine en
+  `@macondosoftwares.com`). El `id_token` se valida con las claves
+  públicas de Google (firma + expiración + audience).
+- Commit `98ebe0d`.
+
+### Fase 23 — Arquitectura multi-landing
+
+- Reestructuración del frontend y backend para soportar **múltiples
+  landings de publicidad**, donde cada landing es un archivo
+  autocontenido en `frontend/src/pages/`. Se acceden desde rutas en la
+  raíz (`/nombre-campana`). Documentado paso a paso en
+  `CONVENCION_LANDINGS.md` (raíz del proyecto).
+- **Convención (`CONVENCION_LANDINGS.md`):** guía con nomenclatura
+  (`Landing[NombreCampana].jsx`), registro en `landings.js`, ruta en
+  `App.jsx`, estructura del archivo, captura de UTMs, envío del lead
+  con campo `landing`, pixels y agendamiento.
+- **Campo `landing` en base de datos:** columna `landing VARCHAR(100)
+  NOT NULL DEFAULT 'vsl-macondo'` en `leads`, `contactos` y
+  `utm_urls` (`schema.sql` + migraciones en `migrate.js`). Los
+  registros existentes quedan con `'vsl-macondo'` por default.
+- **Backend:**
+  - `POST /leads`: recibe `landing` en el body (requerido, validado),
+    lo inserta en `leads` o `contactos`.
+  - `GET /leads`, `GET /leads/:id`, `GET /contactos`: aceptan query
+    param opcional `?landing=xxx` para filtrar. Incluyen `landing` en
+    la respuesta.
+  - `GET /dashboard`, `GET /dashboard/campanas`: aceptan
+    `?landing=xxx` y filtran los cálculos por esa landing.
+  - `POST /utm-urls`: recibe `landing` (validado contra la lista de
+    landings conocidas), construye la URL según la ruta de la landing
+    seleccionada (`DOMAIN + ruta` en vez de URL base hardcodeada).
+    `GET /utm-urls` devuelve `landing` en el historial.
+  - `utm.controller.js`: la constante `BASE_URL` hardcodeada se
+    reemplazó por un mapa `LANDINGS` que resuelve `id → ruta`.
+- **Frontend:**
+  - `frontend/src/utils/landings.js` (nuevo): array `LANDINGS` con
+    `{ id, nombre, ruta }` de cada landing. Lista fija en código,
+    sincronizada con el mapa del backend.
+  - `QuizPopup.jsx`: envía `landing: 'vsl-macondo'` al crear el lead.
+  - `CRM.jsx`, `Contactos.jsx`, `Dashboard.jsx`, `GeneradorUTM.jsx`:
+    filtro por landing (dropdown) + columna "Landing" en las tablas.
+  - `api.js`: `getLeads`, `getDashboard`, `getCampanas`,
+    `getContactos` aceptan parámetro opcional `landing` (query string).
+    `createUtmUrl` envía `landing` en el body.
+- **Estado:** cambios en el working tree, sin commitear todavía.
+
 ---
 
 ## 2. Verificaciones recientes y lecciones aprendidas
@@ -890,55 +1034,18 @@ vacíos (0 bytes) — nadie ha pegado contenido ahí todavía.
 
 ## 3. Próximas fases (en orden)
 
-1. ~~Integración real de Vturb en `VturbPlayer.jsx`~~ — **completada en la
-   Fase 19** (ver sección 1): video real embebido, patrón señuelo +
-   `MutationObserver`, botón "Reservar mi llamada" persistente.
-2. **Deploy** de `frontend/` y `backend/` a producción, por separado — sin
+1. **Deploy** de `frontend/` y `backend/` a producción, por separado — sin
    definir ni probar todavía. Con el hardening de la Fase 8 (helmet, rate
-   limiting, CORS restringido) y la auto-migración de la Fase 19 ya es un
-   mejor punto de partida para esto.
+   limiting, CORS restringido), la auto-migración de la Fase 19, y la
+   arquitectura multi-landing de la Fase 23 ya es un buen punto de partida.
 
 ---
 
-## 4. Próximas fases solicitadas (sin implementar, para retomar)
+## 4. Pendientes solicitados (sin implementar)
 
-Pedidas por el usuario para retomar en una sesión futura — documentadas tal
-cual se pidieron, sin diseñar la implementación ni el alcance exacto
-todavía salvo que se indique lo contrario. No confundir con la sección 3
-(esas sí están listas para construirse ya; estas necesitan más definición
-primero). De los 8 ítems, solo queda pendiente el 6.
-
-1. **Generador de URLs con UTMs preestablecidos — completada en la Fase
-   10** (ver sección 1). Página `/crm/generador-utm`, accesible para
-   cualquier rol (no solo admin), con historial de URLs generadas.
-2. **Vista de detalle de lead — completada en la Fase 12** (ver sección 1).
-   Página `/crm/leads/:id`: datos de contacto, empresa, origen (UTMs),
-   badges de estado y prioridad, y las 4 respuestas del quiz. Solo para
-   `leads`, no para `contactos` (eso se trabaja aparte, ver ítem 6).
-3. **Sistema de usuarios completo — completada en la Fase 9** (ver
-   sección 1). Se implementó la tabla `usuarios` en MySQL con roles
-   (`admin`, `vendedor`); el admin puede crear/gestionar cuentas desde
-   `/crm/usuarios`. Se resolvió la pregunta que había quedado pendiente:
-   **todos los roles ven y editan todos los leads sin restricción** — no
-   hay leads asignados por vendedor.
-4. **Fase 14 — Notificaciones por correo + Google Chat — completada,
-   ver sección 1.** Se dispara solo al agendar una reunión. Código listo
-   y probado en modo "sin configurar"; las variables de entorno reales
-   (`NOTIF_EMAIL_*`, `GOOGLE_CHAT_WEBHOOK_URL`) siguen vacías porque el
-   usuario decidió posponer generar la contraseña de aplicación de
-   Gmail — no confundir "no configurada" con "no implementada".
-5. **Fase 15 — Botón "Agregar a mi calendario" — completada, ver
-   sección 1.** Reemplaza el link directo de Meet por un link
-   pre-rellenado de Google Calendar.
-6. **Filtro de preguntas en descalificados/contactos.** No iniciada.
-   Alcance exacto pendiente de definir. Es el único ítem de esta lista
-   que sigue sin ningún código escrito.
-7. **Ajuste de UI: detalle de lead como modal — completada en la Fase
-   17, ver sección 1.** `/crm/leads/:id` (Fase 12) pasó de página
-   completa a modal sobre la tabla de leads, con la ruta directa como
-   fallback.
-8. **Ajuste de UI: columna "Prioridad" en vez de "Origen" en la tabla de
-   leads — completada en la Fase 17, ver sección 1.**
+1. **Filtro de preguntas en descalificados/contactos.** No iniciada.
+   Alcance exacto pendiente de definir. Es el único ítem de la lista
+   original de 8 solicitudes que sigue sin ningún código escrito.
 
 ---
 
@@ -967,9 +1074,11 @@ primero). De los 8 ítems, solo queda pendiente el 6.
 | `NOTIF_EMAIL_DESTINO` | **vacía, pendiente de configurar** | Fase 14 — único destinatario del correo de agendamiento |
 | `GOOGLE_CHAT_WEBHOOK_URL` | no configurada (opcional) | Fase 14 — webhook entrante de un espacio de Google Chat; mientras esté vacía, la notificación de Chat solo hace `console.log` |
 
-Frontend usa `VITE_API_URL` (opcional, `frontend/.env` / plantilla en
-`frontend/.env.example`) para apuntar al backend; si no está definida, cae a
-`http://localhost:3099` (ver fallback en `frontend/src/services/api.js`).
+### Variables de entorno del frontend (`frontend/.env`)
+| Variable | Estado actual | Notas |
+|---|---|---|
+| `VITE_API_URL` | no configurada (opcional) | URL del backend; si se omite cae a `http://localhost:3099` |
+| `VITE_GOOGLE_CLIENT_ID` | configurada | Mismo Client ID que `GOOGLE_CLIENT_ID` del backend; necesario para Google Identity Services en el login (Fase 22) |
 
 ### Reglas de negocio hardcodeadas a tener en cuenta
 - Horario de atención para disponibilidad (actualizado en la Fase 13):
@@ -1001,6 +1110,14 @@ Frontend usa `VITE_API_URL` (opcional, `frontend/.env` / plantilla en
   (`/crm/usuarios`). El token JWT se guarda solo en memoria (React
   Context), no en `localStorage`: si se recarga la página, hay que
   iniciar sesión de nuevo.
+- **Login con Google** (Fase 22): solo acepta correos de
+  `@macondosoftwares.com`. Usuarios nuevos se auto-crean como
+  `vendedor`. Un admin puede promoverlos después desde `/crm/usuarios`.
+- **Multi-landing** (Fase 23): la lista de landings vive en dos lugares
+  que deben mantenerse sincronizados: `frontend/src/utils/landings.js`
+  (array) y `backend/src/controllers/utm.controller.js` (mapa
+  `LANDINGS`). Al crear una landing nueva, agregar en ambos. Ver
+  `CONVENCION_LANDINGS.md` para el proceso completo.
 
 ### Configuración de seguridad hardcodeada (Fase 8)
 - Rate limits en `backend/src/middleware/rateLimit.js`: login 5 intentos /
@@ -1023,37 +1140,31 @@ Frontend usa `VITE_API_URL` (opcional, `frontend/.env` / plantilla en
 
 ## 6. Deuda técnica y decisiones sin confirmar
 
-Hallazgos de la auditoría de código completa hecha el 2026-08-19
-(`ESTADO_ACTUAL.md`: se leyó cada archivo del backend y frontend en vez de
-confiar en esta bitácora) que no estaban reflejados aquí todavía. Ver ese
-archivo para el detalle completo de qué está verificado, a medias,
-bloqueado por terceros o sin empezar.
-
 - **Nombres de campo del webhook sin confirmar por el PM.**
   `WEBHOOK_FORM_ID = 'quiz_vsl_macondo'` (constante en
   `leads.controller.js`) y los nombres `priority_tier` (mapeo interno
   `vip/alta/media_baja/en_revision` → `TIER_1/TIER_2/TIER_3/
   TIER_REVIEW` en `webhook.service.js`) y
   `current_cloud_provider_other` son elecciones razonables por analogía,
-  no valores literales confirmados por el documento del PM. Esto ya no
-  es un pendiente de integración (el webhook no necesita URL real por
-  ahora, ver Fase 16 en sección 1), pero si en el futuro sí se conecta
-  contra un CRM externo real, vale la pena confirmar estos tres nombres
-  antes de que ese CRM dependa de leerlos.
-- ~~El `detalle` libre de "Otros proveedores / Hosting tradicional" no se
-  persiste cuando el lead califica~~ — **resuelto en la Fase 17** (ver
-  sección 1): columna `detalle` nueva en `respuestas_quiz`.
-- ~~`utm_term` no se muestra en `/crm/leads/:id`~~ — **resuelto** (se
-  agregó a la tarjeta "Origen" del modal al convertirlo en la Fase 17).
-- ~~Migraciones `ALTER TABLE` sin confirmar como corridas contra
-  `vsl_macondo` real.~~ — **resuelto en la Fase 19.** Se auditó la base
-  real contra `schema.sql` (columna por columna, vía `information_schema`,
-  solo lectura) y coincidía en todo salvo el `DEFAULT ''` de
-  `leads.empresa` (ya corregido en `schema.sql`) — es decir, todas estas
-  migraciones ya estaban corridas contra `vsl_macondo`, solo que sin
-  confirmar. Además, `backend/src/db/migrate.js` ahora aplica
-  automáticamente cualquier `ALTER TABLE`/`CREATE TABLE` que falte cada
-  vez que arranca el servidor (antes de `app.listen`, sin arrancar si
-  falla) — de ahora en adelante ya no depende de que alguien recuerde
-  correr SQL a mano ni de confirmar el estado de la base por auditoría
-  manual.
+  no valores literales confirmados por el documento del PM. Mientras el
+  webhook no se conecte contra un CRM externo real (ver Fase 16 en
+  sección 1), no es urgente — pero si en el futuro se conecta, conviene
+  confirmar estos tres nombres antes de que el CRM dependa de leerlos.
+- **`GOOGLE_CALENDAR_ID` en `.env.example` sigue en `primary`** como
+  ejemplo genérico, aunque el proyecto real usa un calendario secundario
+  ("Landing-vsl") — es solo la plantilla, no un problema del `.env`
+  real, pero puede confundir a quien la use literal.
+- **`DB_NAME` en `.env.example` dice `vsl_crm`**, no `vsl_macondo` (el
+  nombre real) — de nuevo, solo la plantilla.
+- **Sin tests automatizados.** Todo lo verificado en esta bitácora se
+  hizo manualmente contra bases de datos descartables o con
+  `curl`/navegador — no hay ningún archivo de test (`*.test.js`,
+  `__tests__/`, etc.) en `backend/` ni `frontend/`.
+- **Festivo "Virgen de Chiquinquirá" pendiente en `festivos_colombia`.**
+  Fecha en disputa entre fuentes (9 o 13 de julio); el usuario la
+  verificaría y pasaría el `INSERT` exacto.
+- **`reference/vturb-embed.txt` y `reference/google-calendar-setup.md`
+  siguen en 0 bytes.** No bloquean nada funcional (el video ya está
+  integrado en el componente y Calendar ya funciona), pero si alguien
+  necesita replicar la configuración no hay documentación escrita en
+  esos archivos.

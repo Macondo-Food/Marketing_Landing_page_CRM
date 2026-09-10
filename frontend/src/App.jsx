@@ -1,4 +1,8 @@
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Outlet, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import LandingVSL from './pages/LandingVSL.jsx';
+import LandingLp1 from './pages/LandingLp1.jsx';
+import FormPage from './pages/FormPage.jsx';
+import Gracias from './pages/Gracias.jsx';
 import CRM from './pages/CRM.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Usuarios from './pages/Usuarios.jsx';
@@ -31,7 +35,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/crm" replace />} />
+        <Route path="/" element={<LandingVSL />} />
+        <Route path="/lp1" element={<LandingLp1 />} />
+        <Route path="/form" element={<FormPage />} />
+        <Route path="/gracias" element={<Gracias />} />
         <Route element={<CrmLayout />}>
           <Route path="/crm" element={<CRM />} />
           <Route path="/crm/dashboard" element={<Dashboard />} />

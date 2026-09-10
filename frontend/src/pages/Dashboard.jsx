@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getCampanas, getDashboard } from '../services/api.js';
+import { LANDINGS } from '../utils/landings.js';
 import Login from './Login.jsx';
 import '../styles/crm.css';
 
@@ -178,11 +179,13 @@ function DashboardView() {
   const [campanas, setCampanas] = useState([]);
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [error, setError] = useState('');
+  const [filtroLanding, setFiltroLanding] = useState('');
 
   const load = useCallback(() => {
     setStatus('loading');
     setError('');
-    return Promise.all([getDashboard(token), getCampanas(token)])
+    const landingArg = filtroLanding || undefined;
+    return Promise.all([getDashboard(token, landingArg), getCampanas(token, landingArg)])
       .then(([dashboardResult, campanasResult]) => {
         setData(dashboardResult);
         setCampanas(campanasResult.campanas);
@@ -196,7 +199,7 @@ function DashboardView() {
         setError(err.message);
         setStatus('error');
       });
-  }, [token, logout]);
+  }, [token, logout, filtroLanding]);
 
   useEffect(() => {
     load();
@@ -240,6 +243,21 @@ function DashboardView() {
             Cerrar sesión
           </button>
         </div>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: '#6B6B6B', marginRight: 8 }}>Landing:</label>
+        <select
+          className="crm-select"
+          value={filtroLanding}
+          onChange={(e) => setFiltroLanding(e.target.value)}
+          style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #DADADE', fontSize: 12 }}
+        >
+          <option value="">Todas</option>
+          {LANDINGS.map((l) => (
+            <option key={l.id} value={l.id}>{l.nombre}</option>
+          ))}
+        </select>
       </div>
 
       {status === 'loading' && <p style={{ color: '#6B6B6B' }}>Cargando dashboard…</p>}

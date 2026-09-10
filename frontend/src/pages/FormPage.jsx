@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getStoredUtms } from '../utils/utm.js';
 import { createLead } from '../services/api.js';
-import ScheduleSlots from './ScheduleSlots.jsx';
+import ScheduleSlots from '../components/ScheduleSlots.jsx';
 
-// Preguntas y lógica de calificación según la sección 3 del plan.
-// `id` coincide con el campo `pregunta` de la tabla respuestas_quiz.
 const QUIZ_QUESTIONS = [
   {
     id: 'inversion_nube',
@@ -54,9 +53,16 @@ const QUIZ_QUESTIONS = [
   },
 ];
 
-// step 0 = datos de contacto, step 1..N = preguntas del quiz, step N+1 = resultado.
 const CONTACT_STEP = 0;
 const RESULT_STEP = QUIZ_QUESTIONS.length + 1;
+
+const INITIAL_CONTACT = {
+  nombre: '',
+  email: '',
+  telefono: '',
+  empresa: '',
+  tratamientoDatosAceptado: false,
+};
 
 const primaryButtonStyle = {
   padding: '12px 28px',
@@ -125,26 +131,15 @@ function validateContact(contact) {
   return errors;
 }
 
-// Estado inicial de los pasos del quiz — se reaplica cada vez que el popup
-// se abre (ver el efecto de reset más abajo) porque el componente ahora
-// permanece siempre montado (nunca se desmonta al cerrar), así que su
-// estado interno ya no se reinicia solo por volver a montarse.
-const INITIAL_CONTACT = {
-  nombre: '',
-  email: '',
-  telefono: '',
-  empresa: '',
-  tratamientoDatosAceptado: false,
-};
-
-export default function QuizPopup({ isOpen, onClose }) {
+export default function FormPage() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(CONTACT_STEP);
   const [contact, setContact] = useState(INITIAL_CONTACT);
   const [contactErrors, setContactErrors] = useState({});
   const [answers, setAnswers] = useState([]);
   const [selected, setSelected] = useState(null);
   const [detailText, setDetailText] = useState('');
-  const [submitStatus, setSubmitStatus] = useState('idle'); // idle | loading | error | done
+  const [submitStatus, setSubmitStatus] = useState('idle');
   const [submitError, setSubmitError] = useState('');
   const [leadId, setLeadId] = useState(null);
   const [backendCalificado, setBackendCalificado] = useState(null);
@@ -159,36 +154,6 @@ export default function QuizPopup({ isOpen, onClose }) {
     [isResultStep, answers]
   );
 
-  // Vuelve a un quiz en blanco cada vez que se abre (equivalente a lo que
-  // antes pasaba solo, al desmontar/montar el componente).
-  useEffect(() => {
-    if (!isOpen) return;
-    setStep(CONTACT_STEP);
-    setContact(INITIAL_CONTACT);
-    setContactErrors({});
-    setAnswers([]);
-    setSelected(null);
-    setDetailText('');
-    setSubmitStatus('idle');
-    setSubmitError('');
-    setLeadId(null);
-    setBackendCalificado(null);
-    hasSubmittedRef.current = false;
-  }, [isOpen]);
-
-  useEffect(() => {
-    function handleKeyDown(e) {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onClose]);
-
-  // Se envía siempre (califique o no según el cálculo del frontend): el
-  // backend recalcula la calificación real y es la fuente de verdad — el
-  // resultado que se muestra después depende de `backendCalificado`, no de
-  // `calificado`.
   function submitLead() {
     const payload = {
       nombre: contact.nombre.trim(),
@@ -198,7 +163,8 @@ export default function QuizPopup({ isOpen, onClose }) {
       tratamiento_datos_aceptado: contact.tratamientoDatosAceptado === true,
       utms: getStoredUtms(),
       calificado,
-      respuestas: answers, // [{ pregunta, respuesta, descalifica, detalle? }, ...]
+      respuestas: answers,
+      landing: 'vsl-macondo',
     };
 
     setSubmitStatus('loading');
@@ -219,7 +185,6 @@ export default function QuizPopup({ isOpen, onClose }) {
     if (!isResultStep || hasSubmittedRef.current) return;
     hasSubmittedRef.current = true;
     submitLead();
-    // Solo debe dispararse una vez, al llegar al paso de resultado.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isResultStep]);
 
@@ -267,7 +232,7 @@ export default function QuizPopup({ isOpen, onClose }) {
       setStep(CONTACT_STEP);
       return;
     }
-    const prevQuestionIndex = step - 2; // índice 0-based de la pregunta a la que volvemos
+    const prevQuestionIndex = step - 2;
     const prevQuestion = QUIZ_QUESTIONS[prevQuestionIndex];
     const prevAnswer = answers[prevQuestionIndex];
     const prevIndex = prevQuestion.options.findIndex((o) => o.value === prevAnswer.respuesta);
@@ -277,24 +242,26 @@ export default function QuizPopup({ isOpen, onClose }) {
     setStep(step - 1);
   }
 
+  function handleScheduleDone() {
+    navigate('/gracias');
+  }
+
   return (
     <div
-      onClick={onClose}
-      className={`quiz-popup-overlay${isOpen ? '' : ' quiz-popup-hidden'}`}
       style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,.75)',
+        minHeight: '100vh',
+        background: '#000',
+        color: '#fff',
+        fontFamily: "'Source Sans 3', system-ui, sans-serif",
+        WebkitFontSmoothing: 'antialiased',
+        display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 20,
-        zIndex: 1000,
+        padding: '40px 20px',
       }}
     >
       <div
-        onClick={(e) => e.stopPropagation()}
         style={{
-          position: 'relative',
           width: '100%',
           maxWidth: 560,
           background: '#0C0C0C',
@@ -302,28 +269,8 @@ export default function QuizPopup({ isOpen, onClose }) {
           borderRadius: 14,
           boxShadow: '0 0 0 6px rgba(248,245,34,.06)',
           padding: '32px 28px',
-          color: '#fff',
-          fontFamily: "'Source Sans 3', system-ui, sans-serif",
         }}
       >
-        <button
-          onClick={onClose}
-          aria-label="Cerrar"
-          style={{
-            position: 'absolute',
-            top: 14,
-            right: 14,
-            background: 'transparent',
-            border: 'none',
-            color: '#8A8A8A',
-            fontSize: 22,
-            lineHeight: 1,
-            cursor: 'pointer',
-          }}
-        >
-          ×
-        </button>
-
         {isContactStep && (
           <>
             <p style={eyebrowStyle}>Antes de comenzar</p>
@@ -534,7 +481,7 @@ export default function QuizPopup({ isOpen, onClose }) {
             <p style={{ margin: '0 0 20px', color: '#FF6B6B', fontSize: 14, lineHeight: 1.5 }}>{submitError}</p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
               <button
-                onClick={onClose}
+                onClick={() => navigate('/')}
                 style={{
                   padding: '12px 20px',
                   borderRadius: 999,
@@ -547,7 +494,7 @@ export default function QuizPopup({ isOpen, onClose }) {
                   fontSize: 13,
                 }}
               >
-                Cerrar
+                Volver
               </button>
               <button onClick={submitLead} style={primaryButtonStyle}>
                 Reintentar
@@ -557,7 +504,7 @@ export default function QuizPopup({ isOpen, onClose }) {
         )}
 
         {isResultStep && submitStatus === 'done' && backendCalificado && (
-          <ScheduleSlots leadId={leadId} contactEmail={contact.email} onClose={onClose} />
+          <ScheduleSlots leadId={leadId} contactEmail={contact.email} onClose={handleScheduleDone} />
         )}
 
         {isResultStep && submitStatus === 'done' && !backendCalificado && (
@@ -568,8 +515,8 @@ export default function QuizPopup({ isOpen, onClose }) {
             <p style={{ margin: '0 0 22px', color: '#B4B4B4', fontSize: 15, lineHeight: 1.6 }}>
               Uno de nuestros asesores revisará tu información y te contactará pronto.
             </p>
-            <button onClick={onClose} style={primaryButtonStyle}>
-              Cerrar
+            <button onClick={() => navigate('/')} style={primaryButtonStyle}>
+              Volver al inicio
             </button>
           </div>
         )}

@@ -66,9 +66,10 @@ export function loginGoogleRequest(idToken) {
   });
 }
 
-// (token) -> [{ id, nombre, email, telefono, utm_source, ..., estado, created_at }, ...]
-export function getLeads(token) {
-  return request('/leads', {
+// (token, landing?) -> [{ id, nombre, email, telefono, utm_source, ..., landing, estado, created_at }, ...]
+export function getLeads(token, landing) {
+  const qs = landing ? `?landing=${encodeURIComponent(landing)}` : '';
+  return request(`/leads${qs}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
@@ -106,16 +107,18 @@ export function updateLeadEstado(token, id, estado) {
   });
 }
 
-// (token) -> { resumen: {...}, respuestas: { [pregunta]: [{ respuesta, total, porcentaje }, ...] } }
-export function getDashboard(token) {
-  return request('/dashboard', {
+// (token, landing?) -> { resumen: {...}, respuestas: { [pregunta]: [{ respuesta, total, porcentaje }, ...] } }
+export function getDashboard(token, landing) {
+  const qs = landing ? `?landing=${encodeURIComponent(landing)}` : '';
+  return request(`/dashboard${qs}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
 
-// (token) -> { campanas: [{ utm_source, utm_campaign, total, calificados, agendados, porcentajeConversion }, ...] }
-export function getCampanas(token) {
-  return request('/dashboard/campanas', {
+// (token, landing?) -> { campanas: [{ utm_source, utm_campaign, total, calificados, agendados, porcentajeConversion }, ...] }
+export function getCampanas(token, landing) {
+  const qs = landing ? `?landing=${encodeURIComponent(landing)}` : '';
+  return request(`/dashboard/campanas${qs}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
@@ -178,9 +181,10 @@ export function createUtmUrl(token, payload) {
   });
 }
 
-// (token) -> [{ id, nombre, email, telefono, empresa, utm_source, ..., motivo_descalificacion, contactado, created_at }, ...]
-export function getContactos(token) {
-  return request('/contactos', {
+// (token, landing?) -> [{ id, nombre, email, telefono, empresa, utm_source, ..., landing, motivo_descalificacion, contactado, created_at }, ...]
+export function getContactos(token, landing) {
+  const qs = landing ? `?landing=${encodeURIComponent(landing)}` : '';
+  return request(`/contactos${qs}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
