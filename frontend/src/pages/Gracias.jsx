@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import macondoLogo from '../assets/macondo-logo.webp';
+import { loadMarketingPixels } from '../utils/marketingPixels.js';
 
 const gold = '#f7b32b';
 const bg = '#070d18';
@@ -22,6 +24,10 @@ const nextSteps = [
 
 export default function Gracias() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    loadMarketingPixels();
+  }, []);
 
   return (
     <div style={{

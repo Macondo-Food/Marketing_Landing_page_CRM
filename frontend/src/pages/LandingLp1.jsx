@@ -1,6 +1,23 @@
 import { useNavigate } from 'react-router-dom';
 import macondoLogo from '../assets/macondo-logo.webp';
+import whaleCloud from '../assets/whale-cloud-logo.png';
+import whaleCloudWebp from '../assets/whale-cloud-logo.webp';
+import claro from '../assets/claro-logo.png';
+import claroWebp from '../assets/claro-logo.webp';
+import govLab from '../assets/gov-lab-logo.png';
+import govLabWebp from '../assets/gov-lab-logo.webp';
+import manizales from '../assets/manizales-logo.png';
+import manizalesWebp from '../assets/manizales-logo.webp';
+import toka from '../assets/toka-logo.png';
+import tokaWebp from '../assets/toka-logo.webp';
+import universidadSabana from '../assets/universidad-sabana-logo.png';
+import universidadSabanaWebp from '../assets/universidad-sabana-logo.webp';
+import comparativaCloud from '../img/Im lP.png';
+import comparativaCloudWebp from '../img/Im lP.webp';
+import santiagoPhoto from '../img/Img Santiago.png';
+import santiagoPhotoWebp from '../img/Img Santiago.webp';
 import { captureUtms } from '../utils/utm.js';
+import { loadMarketingPixels } from '../utils/marketingPixels.js';
 import { useEffect } from 'react';
 
 const gold = '#f7b32b';
@@ -20,7 +37,14 @@ const headingFont = "'Montserrat', sans-serif";
 const bodyFont = "'Source Sans 3', system-ui, sans-serif";
 const monoFont = "'Montserrat', monospace";
 
-const clientLogos = ['Whale Cloud', 'Claro', 'GovLab', 'Manizales', 'Toka', 'U. La Sabana'];
+const clientLogos = [
+  { src: whaleCloud, srcWebp: whaleCloudWebp, alt: 'Logo de Whale Cloud, cliente de Macondo Softwares', displayHeight: 60 },
+  { src: claro, srcWebp: claroWebp, alt: 'Logo de Claro, cliente de Macondo Softwares', displayHeight: 56 },
+  { src: govLab, srcWebp: govLabWebp, alt: 'Logo de Govlab Universidad de La Sabana, cliente de Macondo Softwares', displayHeight: 44 },
+  { src: manizales, srcWebp: manizalesWebp, alt: 'Logo de Manizales del Alma y People Contact, cliente de Macondo Softwares', displayHeight: 48 },
+  { src: toka, srcWebp: tokaWebp, alt: 'Logo de Toka, cliente de Macondo Softwares', displayHeight: 60 },
+  { src: universidadSabana, srcWebp: universidadSabanaWebp, alt: 'Logo de la Universidad de La Sabana, cliente de Macondo Softwares', displayHeight: 50 },
+];
 
 const painPoints = [
   {
@@ -75,10 +99,33 @@ const steps = [
   { n: '04', title: 'Go-live cuando estés listo', body: 'Producción cuando tú digas. Con reversa disponible en todo momento.' },
 ];
 
+const perks = [
+  { title: 'Soporte nivel 1 a 3 en español', body: 'Ingenieros reales, no tickets que rebotan entre equipos. Respuesta en tu zona horaria.' },
+  { title: 'Tarifa fija de soporte', body: 'No un porcentaje de tu consumo. Sabes cuánto pagas cada mes, sin sorpresas.' },
+  { title: 'Capacitación a tu equipo', body: 'Te enseñamos a manejar la nueva nube. Si quieres operar solo, puedes.' },
+  { title: 'Monitoreo FinOps continuo', body: 'Revisamos tu factura cada mes para mantener el ahorro, no solo al migrar.' },
+];
+
+const offerItems = [
+  { tag: 'INCLUYE', title: 'Auditoría FinOps completa', body: 'Revisamos línea por línea tu factura actual y te mostramos dónde estás pagando de más.' },
+  { tag: 'INCLUYE', title: 'Comparativo 1:1 de arquitectura', body: 'Tu misma infra cotizada en Alibaba Cloud: mismo rendimiento, menor costo.' },
+  { tag: 'INCLUYE', title: 'Plan de migración sin riesgo', body: 'Roadmap detallado con tiempos, responsables y criterios de reversa.' },
+];
+
+const authorityStats = [
+  { stat: '30%', body: 'Ahorro promedio en factura de nube para nuestros clientes en LatAm.' },
+  { stat: '15+', body: 'Migraciones completadas de AWS, Azure y Oracle a Alibaba Cloud.' },
+  { stat: '24/7', body: 'Soporte en español con ingenieros certificados por Alibaba Cloud.' },
+  { stat: '0', body: 'Costo de migración. La transición QA no tiene honorarios.' },
+];
+
 export default function LandingLp1() {
   const navigate = useNavigate();
 
-  useEffect(() => { captureUtms(); }, []);
+  useEffect(() => {
+    captureUtms();
+    loadMarketingPixels();
+  }, []);
 
   function goToForm() { navigate('/form'); }
 
@@ -125,14 +172,17 @@ export default function LandingLp1() {
               <span style={{ color: text }}>Comparativo 1:1 de tu factura</span>
             </div>
           </div>
-          {/* Hero visual placeholder */}
+          {/* Hero visual — comparativa cloud */}
           <div style={{ position: 'relative' }}>
             <div style={{ position: 'absolute', inset: -14, borderRadius: 24, background: 'linear-gradient(135deg, rgba(247,179,43,.28), rgba(45,120,255,.2))', filter: 'blur(28px)' }} />
-            <div style={{ position: 'relative', border: `1px solid rgba(255,255,255,.1)`, borderRadius: 18, overflow: 'hidden', background: bgCard, aspectRatio: '1/1', maxWidth: 520, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ fontFamily: monoFont, fontSize: 13, color: textDark, letterSpacing: '.1em', textTransform: 'uppercase', textAlign: 'center', padding: 24 }}>
-                Comparativo de factura<br />AWS vs Alibaba Cloud<br />(imagen)
-              </div>
-            </div>
+            <picture>
+              <source srcSet={comparativaCloudWebp} type="image/webp" />
+              <img
+                src={comparativaCloud}
+                alt="Comparativo de costos: AWS, Azure, Oracle y Google Cloud vs Alibaba Cloud — 30% de ahorro con FinOps"
+                style={{ position: 'relative', width: '100%', maxWidth: 520, margin: '0 auto', display: 'block', borderRadius: 18, border: '1px solid rgba(255,255,255,.1)' }}
+              />
+            </picture>
           </div>
         </div>
       </section>
@@ -145,8 +195,11 @@ export default function LandingLp1() {
         <div style={{ position: 'relative', overflow: 'hidden', maskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)' }}>
           <div style={{ display: 'flex', width: 'max-content', animation: 'lp1-marquee 30s linear infinite' }}>
             {[...clientLogos, ...clientLogos].map((logo, i) => (
-              <div key={i} style={{ width: 150, height: 56, border: '1px dashed rgba(255,255,255,.16)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: monoFont, fontSize: 11, letterSpacing: '.1em', color: textDark, textTransform: 'uppercase', flex: 'none', margin: '0 clamp(14px,2vw,32px)' }}>
-                {logo}
+              <div key={i} style={{ width: 220, height: 110, background: '#fff', borderRadius: 12, padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none', margin: '0 clamp(14px,2vw,32px)' }}>
+                <picture>
+                  <source srcSet={logo.srcWebp} type="image/webp" />
+                  <img src={logo.src} alt={logo.alt} loading="lazy" style={{ width: '100%', height: logo.displayHeight, objectFit: 'contain' }} />
+                </picture>
               </div>
             ))}
           </div>
@@ -251,28 +304,123 @@ export default function LandingLp1() {
               </div>
             ))}
           </div>
+
+          {/* BENEFICIOS EXTRAS */}
+          <h3 style={{ fontFamily: headingFont, fontWeight: 700, fontSize: 'clamp(22px,2.2vw,30px)', lineHeight: 1.2, letterSpacing: '-.01em', margin: 'clamp(30px,3.5vw,44px) 0 20px', color: text }}>
+            ¡Además cuentas con beneficios extras!
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 16 }}>
+            {perks.map((k, i) => (
+              <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: 20, borderRadius: 14, background: 'rgba(255,255,255,.03)', border: `1px solid ${border}` }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: gold, marginTop: 7, flex: 'none' }} />
+                <div>
+                  <div style={{ fontFamily: headingFont, fontWeight: 600, fontSize: 15.5, color: text, marginBottom: 5 }}>{k.title}</div>
+                  <div style={{ fontSize: 14, lineHeight: 1.55, color: text }}>{k.body}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* FINAL CTA */}
-      <section style={{ padding: 'clamp(56px,7vw,100px) clamp(16px,5vw,64px)', background: bgAlt, borderTop: `1px solid ${border}` }}>
-        <div style={{ maxWidth: 680, margin: '0 auto', textAlign: 'center' }}>
-          <h2 style={{ fontFamily: headingFont, fontWeight: 800, fontSize: 'clamp(28px,3.4vw,46px)', lineHeight: 1.1, margin: '0 0 18px' }}>
-            ¿Listo para ver cuánto estás pagando de más?
+      {/* OFERTA / CTA 2 */}
+      <section id="agenda" style={{ padding: 'clamp(56px,7vw,100px) clamp(16px,5vw,64px)', background: 'radial-gradient(900px 420px at 50% 0%, rgba(247,179,43,.12), transparent 65%)' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
+          <h2 style={{ fontFamily: headingFont, fontWeight: 800, fontSize: 'clamp(28px,3.6vw,48px)', lineHeight: 1.08, letterSpacing: '-.02em', margin: '0 0 18px' }}>
+            Sesión de diagnóstico FinOps · 45 minutos · sin costo
           </h2>
-          <p style={{ fontSize: 'clamp(16px,1.5vw,20px)', lineHeight: 1.6, color: textMuted, margin: '0 0 34px' }}>
-            Agenda tu sesión gratuita de 45 minutos. Sin costo, sin compromiso. Sal sabiendo, número al lado de número, cuánto puedes ahorrar.
+          <p style={{ fontSize: 'clamp(16px,1.4vw,19px)', lineHeight: 1.65, color: textMuted, margin: '0 auto 34px', maxWidth: '62ch' }}>
+            No te estoy pidiendo que migres. Te estoy pidiendo que sepas cuánto estás pagando de más — porque hoy no lo sabes, y nadie lo sabe sin comparar.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 14, textAlign: 'left', marginBottom: 34 }}>
+            {offerItems.map((o, i) => (
+              <div key={i} style={{ background: bgCard, border: `1px solid ${borderLight}`, borderRadius: 16, padding: 24 }}>
+                <div style={{ fontFamily: monoFont, fontSize: 11.5, letterSpacing: '.16em', color: gold, marginBottom: 12 }}>{o.tag}</div>
+                <div style={{ fontFamily: headingFont, fontWeight: 600, fontSize: 17, color: text, marginBottom: 8 }}>{o.title}</div>
+                <div style={{ fontSize: 14.5, lineHeight: 1.6, color: '#9fadc1' }}>{o.body}</div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={goToForm}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 12, background: gold, color: '#0a0f1a',
+              fontFamily: headingFont, fontWeight: 700, fontSize: 'clamp(15px,1.4vw,18px)',
+              padding: '18px 32px', borderRadius: 12, border: 'none', cursor: 'pointer',
+            }}
+          >
+            Quiero Agendar <span style={{ fontSize: 20, lineHeight: 1 }}>→</span>
+          </button>
+          <p style={{ fontSize: 14, color: text, margin: '16px 0 0' }}>
+            Si el comparativo no te convence, te quedas donde estás, no pagaste nada y ganaste un dato que antes no tenías.
+          </p>
+        </div>
+      </section>
+
+      {/* AUTORIDAD */}
+      <section style={{ padding: 'clamp(56px,7vw,100px) clamp(16px,5vw,64px)', background: bgAlt, borderTop: `1px solid ${border}` }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+          <div style={{ maxWidth: 760, marginBottom: 'clamp(30px,4vw,44px)' }}>
+            <p style={{ fontFamily: monoFont, fontSize: 12, letterSpacing: '.2em', textTransform: 'uppercase', color: gold, margin: '0 0 16px' }}>Autoridad</p>
+            <h2 style={{ fontFamily: headingFont, fontWeight: 700, fontSize: 'clamp(26px,3.2vw,42px)', lineHeight: 1.12, letterSpacing: '-.015em', margin: '0 0 16px' }}>
+              No estás bajando de categoría. Estás dejando de pagar el peaje.
+            </h2>
+            <p style={{ fontSize: 16.5, lineHeight: 1.65, color: text, margin: 0 }}>
+              Somos el equipo que hace la migración, el que responde el WhatsApp a las dos de la mañana y el que le enseña a tus ingenieros a manejar esto sin nosotros.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 16, marginBottom: 20 }}>
+            {authorityStats.map((a, i) => (
+              <div key={i} style={{ border: `1px solid ${borderLight}`, borderRadius: 16, padding: '26px 22px', background: bgCard }}>
+                <div style={{ fontFamily: headingFont, fontWeight: 800, fontSize: 'clamp(26px,2.6vw,34px)', color: gold, lineHeight: 1, marginBottom: 10, letterSpacing: '-.02em' }}>{a.stat}</div>
+                <div style={{ fontSize: 14.5, lineHeight: 1.55, color: text }}>{a.body}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 16, alignItems: 'center', background: 'rgba(255,255,255,.03)', border: `1px solid ${border}`, borderRadius: 18, padding: 'clamp(22px,2.6vw,30px)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+              <picture>
+                <source srcSet={santiagoPhotoWebp} type="image/webp" />
+                <img src={santiagoPhoto} alt="Santiago Botero, Fundador y CEO de Macondo Magic Softwares" style={{ width: 88, height: 88, borderRadius: '50%', objectFit: 'cover' }} />
+              </picture>
+              <div>
+                <div style={{ fontFamily: headingFont, fontWeight: 600, fontSize: 17, color: text }}>Santiago Botero</div>
+                <div style={{ fontSize: 14, color: text }}>Fundador &amp; CEO · Macondo Magic Softwares</div>
+              </div>
+            </div>
+            <p style={{ fontSize: 15.5, lineHeight: 1.6, color: text, margin: 0, fontStyle: 'italic' }}>
+              "No somos un revendedor que te pasa una factura y desaparece. Soporte nivel 1 a 3, en español, a tarifa fija — no un porcentaje de tu consumo."
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA 3 */}
+      <section style={{ padding: 'clamp(56px,7vw,96px) clamp(16px,5vw,64px)', textAlign: 'center', background: 'linear-gradient(180deg, rgba(247,179,43,.07), transparent)' }}>
+        <div style={{ maxWidth: 780, margin: '0 auto' }}>
+          <h2 style={{ fontFamily: headingFont, fontWeight: 800, fontSize: 'clamp(28px,3.6vw,46px)', lineHeight: 1.08, letterSpacing: '-.02em', margin: '0 0 16px' }}>
+            Haz la cuenta hoy. Ese 30% ya salió de tu caja este mes.
+          </h2>
+          <p style={{ fontSize: 'clamp(16px,1.4vw,19px)', lineHeight: 1.6, color: text, margin: '0 0 30px' }}>
+            Agenda tu sesión 1 a 1 y sal con el comparativo exacto de tu arquitectura, número al lado de número.
           </p>
           <button
             onClick={goToForm}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 12, background: gold, color: '#0a0f1a',
               fontFamily: headingFont, fontWeight: 700, fontSize: 'clamp(15px,1.4vw,18px)',
-              padding: '18px 30px', borderRadius: 12, border: 'none', cursor: 'pointer',
+              padding: '18px 32px', borderRadius: 12, border: 'none', cursor: 'pointer',
             }}
           >
-            Quiero mi Sesión Gratuita <span style={{ fontSize: 20, lineHeight: 1 }}>→</span>
+            Quiero mi Sesión Gratis <span style={{ fontSize: 20, lineHeight: 1 }}>→</span>
           </button>
+          <p style={{ fontFamily: monoFont, fontSize: 12.5, letterSpacing: '.06em', color: text, margin: '18px 0 0' }}>
+            Por el volumen de agendas y migraciones quedan pocos espacios este mes.
+          </p>
         </div>
       </section>
 
