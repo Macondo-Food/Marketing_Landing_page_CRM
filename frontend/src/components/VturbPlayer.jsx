@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 // en el JSX (React no lo ejecutaría). Se evita duplicar el <script> si el
 // componente se vuelve a montar (ej. Fast Refresh en desarrollo).
 const PLAYER_SCRIPT_SRC =
-  'https://scripts.converteai.net/4fe20c2b-9840-4bf1-bc41-73e3d2c46b5a/players/6a8cd7ce205ee703bdef6eac/v4/player.js';
+  'https://scripts.converteai.net/4fe20c2b-9840-4bf1-bc41-73e3d2c46b5a/players/6aa96b1743bd3650462a4d89/v4/player.js';
 
 // Sin ningún listener de clic propio sobre el área del video: este div solo
 // posiciona el player real de Vturb. Un onClick/onClickCapture aquí captura
@@ -27,7 +27,7 @@ export default function VturbPlayer() {
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
       <vturb-smartplayer
-        id="vid-6a8cd7ce205ee703bdef6eac"
+        id="vid-6aa96b1743bd3650462a4d89"
         style={{ display: 'block', margin: '0 auto', width: '100%' }}
       >
         <div
