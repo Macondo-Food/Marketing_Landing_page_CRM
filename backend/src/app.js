@@ -12,6 +12,9 @@ import usuariosRouter from './routes/usuarios.routes.js';
 import utmRouter from './routes/utm.routes.js';
 import contactosRouter from './routes/contactos.routes.js';
 import pixelRouter from './routes/pixel.routes.js';
+import landingRouter from './routes/landing.routes.js';
+import landingAssetsRouter from './routes/landing-assets.routes.js';
+import landingsPublicasRouter from './routes/landings-publicas.routes.js';
 
 const app = express();
 
@@ -77,6 +80,15 @@ app.use('/usuarios', usuariosRouter);
 app.use('/utm-urls', utmRouter);
 app.use('/contactos', contactosRouter);
 app.use('/pixels', pixelRouter);
+app.use('/landings', landingRouter);
+app.use('/landings', landingAssetsRouter);
+
+// Assets de landings (imágenes subidas al editor)
+app.use('/uploads', express.static('uploads'));
+
+// Landings publicadas del builder — deben ir ANTES de la SPA estática
+// para que Express busque el slug en DB antes de servir index.html.
+app.use('/', landingsPublicasRouter);
 
 const PORT = process.env.PORT || 3001;
 

@@ -12,6 +12,8 @@ import GeneradorUTM from './pages/GeneradorUTM.jsx';
 import LeadDetalle from './pages/LeadDetalle.jsx';
 import Contactos from './pages/Contactos.jsx';
 import PixelManager from './pages/PixelManager.jsx';
+import LandingList from './pages/LandingList.jsx';
+import LandingBuilder from './pages/LandingBuilder.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 
 // /crm y /crm/dashboard comparten el mismo AuthProvider (token en memoria)
@@ -52,6 +54,9 @@ export default function App() {
           <Route path="/crm/generador-utm" element={<GeneradorUTM />} />
           <Route path="/crm/contactos" element={<Contactos />} />
           <Route path="/crm/pixeles" element={<PixelManager />} />
+          <Route path="/crm/landings" element={<LandingList />} />
+          <Route path="/crm/landings/new" element={<LandingBuilder />} />
+          <Route path="/crm/landings/:id/edit" element={<LandingBuilder />} />
           <Route path="/crm/leads/:id" element={<LeadDetalleRoute />} />
         </Route>
       </Routes>

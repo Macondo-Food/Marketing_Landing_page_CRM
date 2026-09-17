@@ -253,3 +253,100 @@ export function deletePixel(token, id) {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
+
+// --- Landings builder (#7, #8, #10, #11, #12) ---
+
+// (token) -> [{ id, slug, nombre, estado, ... }, ...]
+export function getLandings(token) {
+  return request('/landings', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// (token, id) -> { id, slug, nombre, estado, editor_json, ... }
+export function getLanding(token, id) {
+  return request(`/landings/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// (token, { slug, nombre }) -> { id, slug, nombre, estado, ... }
+export function createLanding(token, data) {
+  return request('/landings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
+
+// (token, id, { slug?, nombre?, editor_json?, ... }) -> landing actualizada
+export function updateLanding(token, id, data) {
+  return request(`/landings/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+}
+
+// (token, id, { html, css }) -> landing publicada
+export function publishLanding(token, id, { html, css }) {
+  return request(`/landings/${id}/publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ html, css }),
+  });
+}
+
+// (token, id, estado) -> landing con nuevo estado
+export function updateLandingStatus(token, id, estado) {
+  return request(`/landings/${id}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ estado }),
+  });
+}
+
+// (token, id) -> { id }
+export function deleteLanding(token, id) {
+  return request(`/landings/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// (token, slug) -> { available, slug }
+export function checkSlugAvailable(token, slug) {
+  return request(`/landings/slug/${encodeURIComponent(slug)}/available`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// (token, landingId, file) -> { id, url, ... }
+export function uploadLandingAsset(token, landingId, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return fetch(`${API_URL}/landings/${landingId}/assets`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  }).then(async (r) => {
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'Error al subir archivo');
+    return data;
+  });
+}
+
+// (token, landingId) -> [{ id, filename, url, ... }, ...]
+export function getLandingAssets(token, landingId) {
+  return request(`/landings/${landingId}/assets`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// (token, landingId, assetId) -> { id }
+export function deleteLandingAsset(token, landingId, assetId) {
+  return request(`/landings/${landingId}/assets/${assetId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}

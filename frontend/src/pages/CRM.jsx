@@ -232,6 +232,9 @@ function Dashboard() {
           <Link to="/crm/pixeles" style={navLinkStyle}>
             Píxeles
           </Link>
+          <Link to="/crm/landings" style={navLinkStyle}>
+            Landings
+          </Link>
           {usuario?.rol === 'admin' && (
             <Link to="/crm/usuarios" style={navLinkStyle}>
               Usuarios
