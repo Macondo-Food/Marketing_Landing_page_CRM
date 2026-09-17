@@ -229,6 +229,9 @@ function Dashboard() {
           <Link to="/crm/contactos" style={navLinkStyle}>
             Contactos
           </Link>
+          <Link to="/crm/pixeles" style={navLinkStyle}>
+            Píxeles
+          </Link>
           {usuario?.rol === 'admin' && (
             <Link to="/crm/usuarios" style={navLinkStyle}>
               Usuarios

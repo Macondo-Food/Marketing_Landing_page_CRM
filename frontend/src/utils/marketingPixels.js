@@ -1,22 +1,25 @@
-// Píxeles de marketing (Meta Pixel + LinkedIn Insight Tag).
+// Píxeles de marketing — cargados dinámicamente desde la DB (#22, #23).
 //
-// A propósito NO viven en index.html: esa ubicación los cargaría en TODA la
-// SPA, incluido /crm (login y datos de contacto de clientes). Las condiciones
-// de LinkedIn piden no aplicar la etiqueta globalmente si el sitio tiene
-// páginas con datos sensibles. Por eso se inyectan por código y solo se
-// llama a `loadMarketingPixels()` desde la landing pública (LandingVSL.jsx).
+// Los IDs ya no están hardcodeados: se leen de la tabla pixel_configs
+// vía GET /pixels/landing?landing={id}. Esto permite configurar los
+// píxeles de cada landing desde el CRM sin tocar código.
 //
-// Cada script se agrega dinámicamente con document.createElement (igual que
-// VturbPlayer.jsx) y con guarda contra doble inyección, por si el efecto de
-// React se re-monta (Fast Refresh / StrictMode en desarrollo).
+// A propósito NO viven en index.html: esa ubicación los cargaría en TODA
+// la SPA, incluido /crm (login y datos de contacto de clientes). Por eso
+// se inyectan por código y solo se llama desde las landings públicas.
+//
+// Fallback: si la API falla o no hay configs en DB, usa los IDs
+// hardcodeados como respaldo para que las landings nunca queden sin tracking.
 
-const META_PIXEL_ID = '3042201516085954';
-const LINKEDIN_PARTNER_ID = '9632482';
+import { getPixelsLanding } from '../services/api.js';
+
+const FALLBACK_META_PIXEL_ID = '3042201516085954';
+const FALLBACK_LINKEDIN_PARTNER_ID = '9632482';
 
 const META_SRC = 'https://connect.facebook.net/en_US/fbevents.js';
 const LINKEDIN_SRC = 'https://snap.licdn.com/li.lms-analytics/insight.min.js';
 
-function loadMetaPixel() {
+function loadMetaPixel(pixelId) {
   if (window.fbq) return;
 
   /* eslint-disable */
@@ -38,16 +41,16 @@ function loadMetaPixel() {
   })(window, document, 'script', META_SRC);
   /* eslint-enable */
 
-  window.fbq('init', META_PIXEL_ID);
+  window.fbq('init', pixelId);
   window.fbq('track', 'PageView');
 }
 
-function loadLinkedInInsight() {
+function loadLinkedInInsight(partnerId) {
   if (document.querySelector(`script[src="${LINKEDIN_SRC}"]`)) return;
 
-  window._linkedin_partner_id = LINKEDIN_PARTNER_ID;
+  window._linkedin_partner_id = partnerId;
   window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || [];
-  window._linkedin_data_partner_ids.push(LINKEDIN_PARTNER_ID);
+  window._linkedin_data_partner_ids.push(partnerId);
 
   if (!window.lintrk) {
     window.lintrk = function (a, b) {
@@ -64,10 +67,23 @@ function loadLinkedInInsight() {
   first.parentNode.insertBefore(script, first);
 }
 
-export function loadMarketingPixels() {
+export async function loadMarketingPixels(landingId) {
   try {
-    loadMetaPixel();
-    loadLinkedInInsight();
+    let configs = [];
+    try {
+      configs = await getPixelsLanding(landingId);
+    } catch {
+      // Si la API falla, usar fallback hardcodeado
+    }
+
+    const metaConfig = configs.find((c) => c.tipo === 'meta_pixel');
+    const linkedinConfig = configs.find((c) => c.tipo === 'linkedin_insight');
+
+    const metaId = metaConfig?.pixel_id || FALLBACK_META_PIXEL_ID;
+    const linkedinId = linkedinConfig?.pixel_id || FALLBACK_LINKEDIN_PARTNER_ID;
+
+    loadMetaPixel(metaId);
+    loadLinkedInInsight(linkedinId);
   } catch {
     // Si un bloqueador de anuncios o la red tumban la carga, no debe
     // afectar el render de la landing.

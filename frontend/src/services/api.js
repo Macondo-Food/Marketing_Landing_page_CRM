@@ -123,6 +123,13 @@ export function getCampanas(token, landing) {
   });
 }
 
+// (token) -> { landings: [{ landing, total, calificados, agendados, porcentajeCalificados, porcentajeConversion }, ...], paginasActivas: N }
+export function getLandingsMetricas(token) {
+  return request('/dashboard/landings', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 // (token) -> [{ id, nombre, email, rol, created_at }, ...]
 export function getUsuarios(token) {
   return request('/usuarios', {
@@ -198,5 +205,51 @@ export function updateContactoContactado(token, id, contactado) {
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ contactado }),
+  });
+}
+
+// --- Pixels (#22, #23) ---
+
+// (landing) -> [{ tipo, pixel_id }, ...] — público, sin auth
+export function getPixelsLanding(landing) {
+  return request(`/pixels/landing?landing=${encodeURIComponent(landing)}`);
+}
+
+// (token) -> [{ id, landing, tipo, pixel_id, activo, created_at }, ...]
+export function getPixelsAdmin(token) {
+  return request('/pixels/admin', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// (token, { landing, tipo, pixel_id }) -> { id, landing, tipo, pixel_id, activo }
+export function upsertPixel(token, payload) {
+  return request('/pixels', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+// (token, id, activo) -> { id, activo }
+export function togglePixel(token, id, activo) {
+  return request(`/pixels/${id}/toggle`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ activo }),
+  });
+}
+
+// (token, id) -> { id }
+export function deletePixel(token, id) {
+  return request(`/pixels/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
   });
 }
