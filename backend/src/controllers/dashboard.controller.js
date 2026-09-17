@@ -125,3 +125,40 @@ export async function getCampanas(req, res) {
     res.status(500).json({ error: 'Error al calcular el reporte de campañas' });
   }
 }
+
+// Rendimiento por landing (#28). Agrupa leads, calificados, agendados
+// y tasa de conversión por cada landing registrada.
+export async function getLandings(req, res) {
+  try {
+    const placeholders = ESTADOS_AGENDADO_O_SUPERIOR.map(() => '?').join(',');
+    const [rows] = await pool.query(
+      `SELECT
+         landing,
+         COUNT(*) AS total,
+         SUM(calificado = 1) AS calificados,
+         SUM(estado IN (${placeholders})) AS agendados
+       FROM leads
+       GROUP BY landing
+       ORDER BY total DESC`,
+      ESTADOS_AGENDADO_O_SUPERIOR
+    );
+
+    const landings = rows.map((row) => {
+      const total = Number(row.total);
+      const agendados = Number(row.agendados);
+      return {
+        landing: row.landing,
+        total,
+        calificados: Number(row.calificados),
+        agendados,
+        porcentajeCalificados: total > 0 ? round1((Number(row.calificados) / total) * 100) : 0,
+        porcentajeConversion: total > 0 ? round1((agendados / total) * 100) : 0,
+      };
+    });
+
+    res.json({ landings, paginasActivas: landings.length });
+  } catch (err) {
+    console.error('[dashboard] error al calcular el reporte de landings:', err);
+    res.status(500).json({ error: 'Error al calcular el reporte de landings' });
+  }
+}

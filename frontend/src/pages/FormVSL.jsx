@@ -136,7 +136,7 @@ export default function FormVSL() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadMarketingPixels();
+    loadMarketingPixels('vsl-macondo');
   }, []);
 
   const [step, setStep] = useState(CONTACT_STEP);
