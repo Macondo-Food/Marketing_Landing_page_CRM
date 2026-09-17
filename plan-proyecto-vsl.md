@@ -7,7 +7,30 @@ Sistema de captación de leads compuesto por dos aplicaciones independientes, de
 - **Front**: Landing tipo VSL (Video Sales Letter) que recibe tráfico de Meta Ads, LinkedIn Ads y Orgánico, captura el origen del lead (UTMs), reproduce un video de ventas (Vturb) y, mediante un popup, califica al lead con un quiz y le permite agendar una reunión directamente en Google Calendar si califica.
 - **Back**: Mini CRM que centraliza los leads, gestiona su estado dentro del pipeline comercial, expone la disponibilidad real del calendario y crea los eventos agendados.
 
-**Dominio de referencia:** `https://www.macondosoftwares.com/vsl`
+**Dominio de referencia:** `https://www.macondosoftwares.com`
+
+---
+
+## 1.1 Mapa de URLs públicas
+
+| URL | Página | Archivo |
+|---|---|---|
+| `macondosoftwares.com/vsl/` | Landing VSL Macondo (Cloud) — video + CTA | `LandingVSL.jsx` |
+| `macondosoftwares.com/formvsl/` | Formulario/Quiz VSL | `FormVSL.jsx` |
+| `macondosoftwares.com/graciasvsl/` | Gracias post-agendamiento VSL | `GraciasVSL.jsx` |
+| `macondosoftwares.com/lp1/` | Landing Cloud Savings (LatAm) | `LandingLp1.jsx` |
+| `macondosoftwares.com/lp1/form` | Formulario/Quiz LP1 | `FormLp1.jsx` |
+| `macondosoftwares.com/lp1/gracias` | Gracias post-agendamiento LP1 | `GraciasLp1.jsx` |
+
+**Flujo por landing:**
+- VSL: `/vsl/` → `/formvsl/` → `/graciasvsl/`
+- LP1: `/lp1/` → `/lp1/form` → `/lp1/gracias`
+
+Cada landing tiene su propio formulario y página de gracias como archivos separados, permitiendo personalizar preguntas, diseño y contenido de forma independiente. El campo `landing` en el backend distingue el origen de cada lead (`vsl-macondo` vs `lp1`).
+
+**Pixels:** Meta Pixel y LinkedIn Insight Tag se cargan en las 6 URLs públicas. No se cargan en `/crm`.
+
+**Raíz:** `/` redirige a `/vsl`.
 
 ---
 
@@ -192,3 +215,8 @@ proyecto-vsl/
 6. **Backend — Google Calendar:** construir `googleCalendar.service.js` con OAuth2 (credenciales según `reference/google-calendar-setup.md`, guardadas como variables de entorno en `back/.env`, nunca en el repo), `GET /calendar/disponibilidad` (freebusy) y `POST /calendar/agendar` (crea evento con Meet, actualiza estado del lead).
 7. **Backend — CRM y dashboard:** rutas para listar/filtrar leads, cambiar `estado` manualmente desde el CRM, y `GET /dashboard` con el % de respuestas por pregunta (agrupando la tabla `respuestas_quiz`).
 8. **Estructura de carpetas:** respetar la separación `reference/`, `front/` y `back/` de la sección 5 — `reference/` es solo material fuente y nunca se despliega ni se importa como dependencia de código.
+
+
+
+
+    

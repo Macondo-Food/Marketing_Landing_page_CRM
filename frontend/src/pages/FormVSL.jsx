@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getStoredUtms } from '../utils/utm.js';
 import { createLead } from '../services/api.js';
+import { loadMarketingPixels } from '../utils/marketingPixels.js';
 import ScheduleSlots from '../components/ScheduleSlots.jsx';
 
 const QUIZ_QUESTIONS = [
@@ -131,8 +132,13 @@ function validateContact(contact) {
   return errors;
 }
 
-export default function FormPage() {
+export default function FormVSL() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    loadMarketingPixels();
+  }, []);
+
   const [step, setStep] = useState(CONTACT_STEP);
   const [contact, setContact] = useState(INITIAL_CONTACT);
   const [contactErrors, setContactErrors] = useState({});
@@ -243,7 +249,7 @@ export default function FormPage() {
   }
 
   function handleScheduleDone() {
-    navigate('/gracias');
+    navigate('/graciasvsl');
   }
 
   return (
@@ -481,7 +487,7 @@ export default function FormPage() {
             <p style={{ margin: '0 0 20px', color: '#FF6B6B', fontSize: 14, lineHeight: 1.5 }}>{submitError}</p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/vsl')}
                 style={{
                   padding: '12px 20px',
                   borderRadius: 999,
@@ -515,7 +521,7 @@ export default function FormPage() {
             <p style={{ margin: '0 0 22px', color: '#B4B4B4', fontSize: 15, lineHeight: 1.6 }}>
               Uno de nuestros asesores revisará tu información y te contactará pronto.
             </p>
-            <button onClick={() => navigate('/')} style={primaryButtonStyle}>
+            <button onClick={() => navigate('/vsl')} style={primaryButtonStyle}>
               Volver al inicio
             </button>
           </div>

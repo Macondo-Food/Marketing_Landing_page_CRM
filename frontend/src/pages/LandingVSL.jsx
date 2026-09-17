@@ -68,7 +68,7 @@ export default function LandingVSL() {
       <Header />
       <Hero />
       <VideoSection
-        onFormClick={() => navigate('/form')}
+        onFormClick={() => navigate('/formvsl')}
         showReserveButton={hasRevealed}
       />
       <ClientsSection />
