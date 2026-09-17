@@ -127,7 +127,7 @@ export default function LandingLp1() {
     loadMarketingPixels();
   }, []);
 
-  function goToForm() { navigate('/form'); }
+  function goToForm() { navigate('/lp1/form'); }
 
   return (
     <div style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden', fontFamily: bodyFont, background: bg, color: text, WebkitFontSmoothing: 'antialiased' }}>

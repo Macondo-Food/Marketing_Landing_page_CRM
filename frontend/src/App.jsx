@@ -1,8 +1,10 @@
-import { BrowserRouter, Outlet, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import LandingVSL from './pages/LandingVSL.jsx';
 import LandingLp1 from './pages/LandingLp1.jsx';
-import FormPage from './pages/FormPage.jsx';
-import Gracias from './pages/Gracias.jsx';
+import FormVSL from './pages/FormVSL.jsx';
+import FormLp1 from './pages/FormLp1.jsx';
+import GraciasVSL from './pages/GraciasVSL.jsx';
+import GraciasLp1 from './pages/GraciasLp1.jsx';
 import CRM from './pages/CRM.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Usuarios from './pages/Usuarios.jsx';
@@ -35,10 +37,13 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<LandingVSL />} />
+        <Route path="/" element={<Navigate to="/vsl" replace />} />
+        <Route path="/vsl" element={<LandingVSL />} />
+        <Route path="/formvsl" element={<FormVSL />} />
+        <Route path="/graciasvsl" element={<GraciasVSL />} />
         <Route path="/lp1" element={<LandingLp1 />} />
-        <Route path="/form" element={<FormPage />} />
-        <Route path="/gracias" element={<Gracias />} />
+        <Route path="/lp1/form" element={<FormLp1 />} />
+        <Route path="/lp1/gracias" element={<GraciasLp1 />} />
         <Route element={<CrmLayout />}>
           <Route path="/crm" element={<CRM />} />
           <Route path="/crm/dashboard" element={<Dashboard />} />
@@ -51,3 +56,11 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
+// Registro de landings disponibles. Agregar una entrada aquí cada vez que
+// se crea una landing nueva (debe coincidir con el mapa LANDINGS en
+// backend/src/controllers/utm.controller.js).
+export const LANDINGS = [
+  { id: 'vsl-macondo', nombre: 'VSL Macondo (Cloud)', ruta: '/vsl' },
+  { id: 'lp1', nombre: 'Cloud Savings (LatAm)', ruta: '/lp1' },
+];

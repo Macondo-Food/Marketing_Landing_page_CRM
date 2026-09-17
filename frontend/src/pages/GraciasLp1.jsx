@@ -22,7 +22,7 @@ const nextSteps = [
   'Si decides seguir, migramos QA sin honorarios y con reversa disponible en todo momento.',
 ];
 
-export default function Gracias() {
+export default function GraciasLp1() {
   const navigate = useNavigate();
 
   useEffect(() => {
