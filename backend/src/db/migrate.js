@@ -123,6 +123,20 @@ const TABLES = [
       )
     `,
   },
+  {
+    name: 'pixel_configs',
+    createSql: `
+      CREATE TABLE IF NOT EXISTS pixel_configs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        landing VARCHAR(100) NOT NULL,
+        tipo ENUM('meta_pixel', 'linkedin_insight', 'google_analytics', 'custom_script') NOT NULL,
+        pixel_id VARCHAR(255) NOT NULL,
+        activo BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_landing_tipo (landing, tipo)
+      )
+    `,
+  },
 ];
 
 // Solo entran en juego si la tabla ya existía de una sesión anterior a que
@@ -223,6 +237,16 @@ const FESTIVOS_SEED_SQL = `
     ('2026-12-25', 'Navidad')
 `;
 
+// Pixels actuales hardcodeados en marketingPixels.js — se migran a DB
+// para que sean configurables desde el CRM (#22).
+const PIXELS_SEED_SQL = `
+  INSERT IGNORE INTO pixel_configs (landing, tipo, pixel_id) VALUES
+    ('vsl-macondo', 'meta_pixel', '3042201516085954'),
+    ('vsl-macondo', 'linkedin_insight', '9632482'),
+    ('lp1', 'meta_pixel', '3042201516085954'),
+    ('lp1', 'linkedin_insight', '9632482')
+`;
+
 async function columnExists(table, column) {
   const [rows] = await pool.query(
     `SELECT 1 FROM information_schema.COLUMNS
@@ -284,6 +308,7 @@ export default async function migrate() {
   await ensurePasswordHashNullable();
 
   await pool.query(FESTIVOS_SEED_SQL);
+  await pool.query(PIXELS_SEED_SQL);
 
   console.log('[migrate] estructura de la base de datos al día.');
 }

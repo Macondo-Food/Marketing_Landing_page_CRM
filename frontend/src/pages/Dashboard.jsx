@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { getCampanas, getDashboard } from '../services/api.js';
+import { getCampanas, getDashboard, getLandingsMetricas } from '../services/api.js';
 import { LANDINGS } from '../utils/landings.js';
 import Login from './Login.jsx';
 import '../styles/crm.css';
@@ -173,10 +173,73 @@ function CampanasTable({ campanas }) {
   );
 }
 
+function LandingsTable({ landings, paginasActivas }) {
+  const thStyle = {
+    textAlign: 'left',
+    padding: '10px 14px',
+    fontFamily: 'Montserrat, sans-serif',
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: '.06em',
+    textTransform: 'uppercase',
+    color: '#6B6B6B',
+    borderBottom: '1px solid #E4E4E7',
+  };
+
+  const tdStyle = {
+    padding: '10px 14px',
+    fontSize: 13,
+    color: '#1F1F1F',
+    borderBottom: '1px solid #F0F0F1',
+  };
+
+  return (
+    <>
+      <div style={{ ...cardStyle, marginBottom: 14, display: 'inline-block' }}>
+        <p style={eyebrowStyle}>Páginas activas</p>
+        <p style={{ margin: 0, fontFamily: 'Montserrat, sans-serif', fontWeight: 800, fontSize: 30, color: '#1F1F1F' }}>
+          {paginasActivas}
+        </p>
+      </div>
+      {landings.length === 0 ? (
+        <p style={{ color: '#6B6B6B' }}>Todavía no hay landings con leads.</p>
+      ) : (
+        <div style={{ ...cardStyle, padding: 0, overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Landing</th>
+                <th style={thStyle}>Leads</th>
+                <th style={thStyle}>Calificados</th>
+                <th style={thStyle}>% Calificados</th>
+                <th style={thStyle}>Agendados</th>
+                <th style={thStyle}>% Conversión</th>
+              </tr>
+            </thead>
+            <tbody>
+              {landings.map((l) => (
+                <tr key={l.landing}>
+                  <td style={tdStyle}>{l.landing}</td>
+                  <td style={tdStyle}>{l.total}</td>
+                  <td style={tdStyle}>{l.calificados}</td>
+                  <td style={tdStyle}>{l.porcentajeCalificados}%</td>
+                  <td style={tdStyle}>{l.agendados}</td>
+                  <td style={tdStyle}>{l.porcentajeConversion}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}
+
 function DashboardView() {
   const { token, logout } = useAuth();
   const [data, setData] = useState(null);
   const [campanas, setCampanas] = useState([]);
+  const [landingMetrics, setLandingMetrics] = useState({ landings: [], paginasActivas: 0 });
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [error, setError] = useState('');
   const [filtroLanding, setFiltroLanding] = useState('');
@@ -185,10 +248,15 @@ function DashboardView() {
     setStatus('loading');
     setError('');
     const landingArg = filtroLanding || undefined;
-    return Promise.all([getDashboard(token, landingArg), getCampanas(token, landingArg)])
-      .then(([dashboardResult, campanasResult]) => {
+    return Promise.all([
+      getDashboard(token, landingArg),
+      getCampanas(token, landingArg),
+      getLandingsMetricas(token),
+    ])
+      .then(([dashboardResult, campanasResult, landingsResult]) => {
         setData(dashboardResult);
         setCampanas(campanasResult.campanas);
+        setLandingMetrics(landingsResult);
         setStatus('ready');
       })
       .catch((err) => {
@@ -328,6 +396,19 @@ function DashboardView() {
             Rendimiento por campaña
           </h2>
           <CampanasTable campanas={campanas} />
+
+          <h2
+            style={{
+              margin: '32px 0 14px',
+              fontFamily: 'Montserrat, sans-serif',
+              fontWeight: 700,
+              fontSize: 16,
+              color: '#1F1F1F',
+            }}
+          >
+            Rendimiento por landing
+          </h2>
+          <LandingsTable landings={landingMetrics.landings} paginasActivas={landingMetrics.paginasActivas} />
         </>
       )}
     </div>

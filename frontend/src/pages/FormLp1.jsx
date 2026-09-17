@@ -136,7 +136,7 @@ export default function FormLp1() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadMarketingPixels();
+    loadMarketingPixels('lp1');
   }, []);
 
   const [step, setStep] = useState(CONTACT_STEP);

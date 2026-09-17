@@ -26,7 +26,7 @@ export default function GraciasLp1() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadMarketingPixels();
+    loadMarketingPixels('lp1');
   }, []);
 
   return (
