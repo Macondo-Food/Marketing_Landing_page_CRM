@@ -1,6 +1,7 @@
 import pool from '../db/connection.js';
 import fs from 'fs';
 import path from 'path';
+import { validateFormExists, injectFormFields } from '../services/landing-form.service.js';
 
 // Rutas reservadas del sistema que no pueden usarse como slug (#11).
 const RESERVED_SLUGS = [
@@ -137,7 +138,7 @@ export async function updateLanding(req, res) {
 export async function publishLanding(req, res) {
   const { id } = req.params;
   try {
-    const [rows] = await pool.query('SELECT editor_json FROM landings WHERE id = ?', [id]);
+    const [rows] = await pool.query('SELECT slug, editor_json FROM landings WHERE id = ?', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Landing no encontrada' });
     }
@@ -145,20 +146,28 @@ export async function publishLanding(req, res) {
       return res.status(400).json({ error: 'No hay contenido para publicar (editor vacío)' });
     }
 
-    // Por ahora el HTML se almacena tal cual — la sanitización completa
-    // con DOMPurify se agrega en Fase 5 (#25).
-    // El frontend envía { html, css } ya exportados por GrapesJS.
     const { html, css } = req.body ?? {};
     if (!html) {
       return res.status(400).json({ error: 'HTML exportado es requerido para publicar' });
     }
 
+    // Validar que el HTML contenga un <form> (#18)
+    if (!validateFormExists(html)) {
+      return res.status(400).json({
+        error: 'La landing debe contener al menos un formulario (<form>). Agrega el bloque "Formulario" desde el editor.',
+      });
+    }
+
+    // Inyectar campos ocultos: landing slug, tratamiento de datos, action/method (#19, #21)
+    const processedHtml = injectFormFields(html, { slug: rows[0].slug });
+
+    // La sanitización completa con DOMPurify se agrega en Fase 5 (#25).
     await pool.query(
       `UPDATE landings
        SET estado = 'publicada', html_publicado = ?, css_publicado = ?,
            publicado_por = ?, published_at = NOW()
        WHERE id = ?`,
-      [html, css || '', req.user.userId, id]
+      [processedHtml, css || '', req.user.userId, id]
     );
 
     const [updated] = await pool.query('SELECT * FROM landings WHERE id = ?', [id]);

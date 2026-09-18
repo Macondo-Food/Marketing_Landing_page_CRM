@@ -61,7 +61,10 @@ export function registerCustomBlocks(editor) {
     `,
   });
 
-  // Formulario de contacto (placeholder — Fase 4 lo extenderá)
+  // Formulario de contacto — apunta a POST /leads con landing slug (#16, #19, #21).
+  // Al publicar, el backend inyecta/verifica: hidden landing, checkbox tratamiento,
+  // action="/leads" y method="POST" si faltan.
+  // Los campos required se pueden toggle desde el panel de propiedades de GrapesJS (#17).
   editor.BlockManager.add('contact-form', {
     label: 'Formulario',
     category: 'Custom',
@@ -71,10 +74,26 @@ export function registerCustomBlocks(editor) {
           <h2 style="font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 28px; text-align: center; margin-bottom: 24px;">Contáctanos</h2>
           <form method="POST" action="/leads" style="display: flex; flex-direction: column; gap: 16px;">
             <input type="hidden" name="landing" value="">
-            <input type="text" name="nombre" placeholder="Nombre completo" required style="padding: 12px 16px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 15px; font-family: 'Source Sans 3', sans-serif;">
-            <input type="email" name="email" placeholder="Email" required style="padding: 12px 16px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 15px; font-family: 'Source Sans 3', sans-serif;">
-            <input type="tel" name="telefono" placeholder="Teléfono" required style="padding: 12px 16px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 15px; font-family: 'Source Sans 3', sans-serif;">
-            <input type="text" name="empresa" placeholder="Empresa" required style="padding: 12px 16px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 15px; font-family: 'Source Sans 3', sans-serif;">
+            <div>
+              <label style="display:block;font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;margin-bottom:4px;color:#333;">Nombre completo *</label>
+              <input type="text" name="nombre" placeholder="Tu nombre" required style="width:100%;padding: 12px 16px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 15px; font-family: 'Source Sans 3', sans-serif;box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block;font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;margin-bottom:4px;color:#333;">Email *</label>
+              <input type="email" name="email" placeholder="tu@email.com" required style="width:100%;padding: 12px 16px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 15px; font-family: 'Source Sans 3', sans-serif;box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block;font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;margin-bottom:4px;color:#333;">Teléfono *</label>
+              <input type="tel" name="telefono" placeholder="+57 300 123 4567" required style="width:100%;padding: 12px 16px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 15px; font-family: 'Source Sans 3', sans-serif;box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block;font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;margin-bottom:4px;color:#333;">Empresa *</label>
+              <input type="text" name="empresa" placeholder="Nombre de tu empresa" required style="width:100%;padding: 12px 16px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 15px; font-family: 'Source Sans 3', sans-serif;box-sizing:border-box;">
+            </div>
+            <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#666;font-family:'Source Sans 3',sans-serif;cursor:pointer;">
+              <input type="checkbox" name="tratamiento_datos_aceptado" value="true" required style="margin-top:2px;">
+              <span>Acepto el <strong>tratamiento de datos personales</strong> según la política de privacidad.</span>
+            </label>
             <button type="submit" style="padding: 14px; background: #714B67; color: #fff; border: none; border-radius: 8px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 16px; cursor: pointer;">Enviar</button>
           </form>
         </div>
