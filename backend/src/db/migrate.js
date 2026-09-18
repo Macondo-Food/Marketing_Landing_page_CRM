@@ -123,6 +123,76 @@ const TABLES = [
       )
     `,
   },
+  {
+    name: 'pixel_configs',
+    createSql: `
+      CREATE TABLE IF NOT EXISTS pixel_configs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        landing VARCHAR(100) NOT NULL,
+        tipo ENUM('meta_pixel', 'linkedin_insight', 'google_analytics', 'custom_script') NOT NULL,
+        pixel_id VARCHAR(255) NOT NULL,
+        activo BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_landing_tipo (landing, tipo)
+      )
+    `,
+  },
+  // Fase 3 — Constructor de landings no-code (#7, #8, #10, #11, #12).
+  // El orden importa: landing_forms antes que landings (FK form_id),
+  // landings antes que landing_assets (FK landing_id).
+  {
+    name: 'landing_forms',
+    createSql: `
+      CREATE TABLE IF NOT EXISTS landing_forms (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(200) NOT NULL,
+        config_json TEXT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `,
+  },
+  {
+    name: 'landings',
+    createSql: `
+      CREATE TABLE IF NOT EXISTS landings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        slug VARCHAR(100) NOT NULL UNIQUE,
+        nombre VARCHAR(200) NOT NULL,
+        estado ENUM('borrador', 'publicada', 'desactivada') NOT NULL DEFAULT 'borrador',
+        editor_json LONGTEXT NULL,
+        html_publicado LONGTEXT NULL,
+        css_publicado LONGTEXT NULL,
+        form_id INT NULL,
+        redirect_url VARCHAR(500) NULL,
+        meta_title VARCHAR(200) NULL,
+        meta_description VARCHAR(300) NULL,
+        creado_por INT NOT NULL,
+        publicado_por INT NULL,
+        published_at DATETIME NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT fk_landings_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id),
+        CONSTRAINT fk_landings_publicado_por FOREIGN KEY (publicado_por) REFERENCES usuarios(id),
+        CONSTRAINT fk_landings_form FOREIGN KEY (form_id) REFERENCES landing_forms(id) ON DELETE SET NULL
+      )
+    `,
+  },
+  {
+    name: 'landing_assets',
+    createSql: `
+      CREATE TABLE IF NOT EXISTS landing_assets (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        landing_id INT NOT NULL,
+        filename VARCHAR(255) NOT NULL,
+        storage_path VARCHAR(500) NOT NULL,
+        mime_type VARCHAR(100) NOT NULL,
+        size_bytes INT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_assets_landing FOREIGN KEY (landing_id) REFERENCES landings(id) ON DELETE CASCADE
+      )
+    `,
+  },
 ];
 
 // Solo entran en juego si la tabla ya existía de una sesión anterior a que
@@ -196,6 +266,22 @@ const COLUMN_MIGRATIONS = [
     column: 'landing',
     addSql: `ALTER TABLE utm_urls ADD COLUMN landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo' AFTER utm_term`,
   },
+  // Fase 5 — Asignación automática de leads por landing (#20)
+  {
+    table: 'landings',
+    column: 'asignado_a',
+    addSql: `ALTER TABLE landings ADD COLUMN asignado_a INT NULL AFTER redirect_url, ADD CONSTRAINT fk_landings_asignado FOREIGN KEY (asignado_a) REFERENCES usuarios(id) ON DELETE SET NULL`,
+  },
+  {
+    table: 'leads',
+    column: 'asignado_a',
+    addSql: `ALTER TABLE leads ADD COLUMN asignado_a INT NULL AFTER landing, ADD CONSTRAINT fk_leads_asignado FOREIGN KEY (asignado_a) REFERENCES usuarios(id) ON DELETE SET NULL`,
+  },
+  {
+    table: 'contactos',
+    column: 'asignado_a',
+    addSql: `ALTER TABLE contactos ADD COLUMN asignado_a INT NULL AFTER landing, ADD CONSTRAINT fk_contactos_asignado FOREIGN KEY (asignado_a) REFERENCES usuarios(id) ON DELETE SET NULL`,
+  },
 ];
 
 const PRIORIDAD_ENUM_FINAL = "enum('vip','alta','media_baja','en_revision')";
@@ -221,6 +307,16 @@ const FESTIVOS_SEED_SQL = `
     ('2026-11-16', 'Independencia de Cartagena'),
     ('2026-12-08', 'Inmaculada Concepción'),
     ('2026-12-25', 'Navidad')
+`;
+
+// Pixels actuales hardcodeados en marketingPixels.js — se migran a DB
+// para que sean configurables desde el CRM (#22).
+const PIXELS_SEED_SQL = `
+  INSERT IGNORE INTO pixel_configs (landing, tipo, pixel_id) VALUES
+    ('vsl-macondo', 'meta_pixel', '3042201516085954'),
+    ('vsl-macondo', 'linkedin_insight', '9632482'),
+    ('lp1', 'meta_pixel', '3042201516085954'),
+    ('lp1', 'linkedin_insight', '9632482')
 `;
 
 async function columnExists(table, column) {
@@ -284,6 +380,7 @@ export default async function migrate() {
   await ensurePasswordHashNullable();
 
   await pool.query(FESTIVOS_SEED_SQL);
+  await pool.query(PIXELS_SEED_SQL);
 
   console.log('[migrate] estructura de la base de datos al día.');
 }

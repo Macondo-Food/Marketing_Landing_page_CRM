@@ -1,6 +1,7 @@
 import pool from '../db/connection.js';
 import { evaluateQualification } from '../services/qualification.service.js';
 import { enviarWebhookLead } from '../services/webhook.service.js';
+import { sendMetaLeadEvent } from '../services/meta-capi.service.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -55,6 +56,20 @@ export async function createLead(req, res) {
   }
 
   const landingTrimmed = landing.trim();
+
+  // Buscar asignación automática de la landing (#20)
+  let asignadoA = null;
+  try {
+    const [landingRows] = await pool.query(
+      'SELECT asignado_a FROM landings WHERE slug = ?', [landingTrimmed]
+    );
+    if (landingRows.length > 0) {
+      asignadoA = landingRows[0].asignado_a;
+    }
+  } catch {
+    // Si la tabla landings no existe aún, ignorar — la asignación queda null
+  }
+
   const datosContacto = [
     nombre.trim(),
     email.trim(),
@@ -80,9 +95,9 @@ export async function createLead(req, res) {
       const [result] = await pool.execute(
         `INSERT INTO contactos
           (nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term, landing,
-           motivo_descalificacion, tratamiento_datos_aceptado, tratamiento_datos_fecha)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [...datosContacto, motivoDescalificacion, true, tratamientoDatosFecha]
+           motivo_descalificacion, tratamiento_datos_aceptado, tratamiento_datos_fecha, asignado_a)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [...datosContacto, motivoDescalificacion, true, tratamientoDatosFecha, asignadoA]
       );
       enviarWebhookLead({
         formId: WEBHOOK_FORM_ID,
@@ -92,6 +107,9 @@ export async function createLead(req, res) {
         prioridad: null,
         utms,
       });
+      // Meta CAPI — fire-and-forget (#24)
+      sendMetaLeadEvent({ nombre, email, telefono, empresa, landing, utms });
+
       return res.status(201).json({ calificado: false, contactoId: result.insertId });
     } catch (err) {
       console.error('[leads] error al crear contacto:', err);
@@ -107,16 +125,16 @@ export async function createLead(req, res) {
     const [leadResult] = await connection.execute(
       `INSERT INTO leads
         (nombre, email, telefono, empresa, utm_source, utm_medium, utm_campaign, utm_content, utm_term, landing,
-         calificado, prioridad, tratamiento_datos_aceptado, tratamiento_datos_fecha, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         calificado, prioridad, tratamiento_datos_aceptado, tratamiento_datos_fecha, estado, asignado_a)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         ...datosContacto,
         true,
         prioridad,
         true,
         tratamientoDatosFecha,
-        // 'agendado' solo se asigna al crear el evento de Calendar (Fase 4).
         'calificado',
+        asignadoA,
       ]
     );
 
@@ -138,6 +156,8 @@ export async function createLead(req, res) {
       prioridad,
       utms,
     });
+    // Meta CAPI — fire-and-forget (#24)
+    sendMetaLeadEvent({ nombre, email, telefono, empresa, landing, utms });
     res.status(201).json({ calificado, prioridad, leadId });
   } catch (err) {
     if (connection) await connection.rollback();

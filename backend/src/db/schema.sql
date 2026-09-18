@@ -33,7 +33,9 @@ CREATE TABLE IF NOT EXISTS leads (
   calendar_event_id VARCHAR(255) NULL,
   reunion_fecha_hora DATETIME NULL,
   landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  asignado_a INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_leads_asignado FOREIGN KEY (asignado_a) REFERENCES usuarios(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS respuestas_quiz (
@@ -71,7 +73,9 @@ CREATE TABLE IF NOT EXISTS contactos (
   tratamiento_datos_aceptado BOOLEAN NOT NULL DEFAULT FALSE,
   tratamiento_datos_fecha DATETIME NULL,
   landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  asignado_a INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_contactos_asignado FOREIGN KEY (asignado_a) REFERENCES usuarios(id) ON DELETE SET NULL
 );
 
 -- Usuarios del CRM (Fase de sistema de usuarios con roles). El primer admin
@@ -104,6 +108,59 @@ CREATE TABLE IF NOT EXISTS utm_urls (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_utm_urls_usuario
     FOREIGN KEY (creado_por) REFERENCES usuarios(id)
+);
+
+-- ---------------------------------------------------------------------------
+-- Fase 3 — Constructor de landings no-code (#7, #8, #10, #11, #12)
+-- ---------------------------------------------------------------------------
+
+-- Formularios generados por el builder (#16, Fase 4). Se crean antes que
+-- landings porque landings.form_id apunta aquí.
+CREATE TABLE IF NOT EXISTS landing_forms (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(200) NOT NULL,
+  config_json TEXT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Landings creadas con el builder no-code. editor_json guarda el estado del
+-- editor GrapesJS para reabrir; html/css_publicado es lo que se sirve al
+-- visitante. slug es la URL path: /:slug.
+CREATE TABLE IF NOT EXISTS landings (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  slug VARCHAR(100) NOT NULL UNIQUE,
+  nombre VARCHAR(200) NOT NULL,
+  estado ENUM('borrador', 'publicada', 'desactivada') NOT NULL DEFAULT 'borrador',
+  editor_json LONGTEXT NULL,
+  html_publicado LONGTEXT NULL,
+  css_publicado LONGTEXT NULL,
+  form_id INT NULL,
+  redirect_url VARCHAR(500) NULL,
+  asignado_a INT NULL,
+  meta_title VARCHAR(200) NULL,
+  meta_description VARCHAR(300) NULL,
+  creado_por INT NOT NULL,
+  publicado_por INT NULL,
+  published_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_landings_creado_por FOREIGN KEY (creado_por) REFERENCES usuarios(id),
+  CONSTRAINT fk_landings_publicado_por FOREIGN KEY (publicado_por) REFERENCES usuarios(id),
+  CONSTRAINT fk_landings_form FOREIGN KEY (form_id) REFERENCES landing_forms(id) ON DELETE SET NULL
+);
+
+-- Assets: imágenes y archivos subidos para usar en las landings (#7).
+-- storage_path es relativo al directorio uploads/ del backend.
+CREATE TABLE IF NOT EXISTS landing_assets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  landing_id INT NOT NULL,
+  filename VARCHAR(255) NOT NULL,
+  storage_path VARCHAR(500) NOT NULL,
+  mime_type VARCHAR(100) NOT NULL,
+  size_bytes INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_assets_landing FOREIGN KEY (landing_id) REFERENCES landings(id) ON DELETE CASCADE
 );
 
 -- Festivos de Colombia (Fase 13): tabla editable en vez de hardcodear fechas

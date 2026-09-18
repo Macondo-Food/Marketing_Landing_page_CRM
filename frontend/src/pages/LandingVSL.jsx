@@ -19,7 +19,7 @@ export default function LandingVSL() {
     captureUtms();
     // Meta Pixel + LinkedIn Insight Tag: solo en la landing pública, nunca
     // en /crm (ver marketingPixels.js).
-    loadMarketingPixels();
+    loadMarketingPixels('vsl-macondo');
   }, []);
 
   // El panel de Vturb está configurado para revelar el elemento con id
