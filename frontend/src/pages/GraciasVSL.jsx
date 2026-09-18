@@ -26,7 +26,7 @@ export default function GraciasVSL() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadMarketingPixels();
+    loadMarketingPixels('vsl-macondo');
   }, []);
 
   return (

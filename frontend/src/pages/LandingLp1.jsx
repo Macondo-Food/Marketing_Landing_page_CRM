@@ -124,7 +124,7 @@ export default function LandingLp1() {
 
   useEffect(() => {
     captureUtms();
-    loadMarketingPixels();
+    loadMarketingPixels('lp1');
   }, []);
 
   function goToForm() { navigate('/lp1/form'); }
