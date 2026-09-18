@@ -2,6 +2,8 @@ import pool from '../db/connection.js';
 import fs from 'fs';
 import path from 'path';
 import { validateFormExists, injectFormFields } from '../services/landing-form.service.js';
+import { sanitizeLandingHtml, sanitizeLandingCss } from '../services/landing-sanitize.service.js';
+import { invalidateLanding } from '../services/landing-cache.service.js';
 
 // Rutas reservadas del sistema que no pueden usarse como slug (#11).
 const RESERVED_SLUGS = [
@@ -64,6 +66,9 @@ export async function createLanding(req, res) {
       [slug, nombre.trim(), req.user.userId]
     );
 
+    // Asignación automática: el creador es el responsable por defecto (#20)
+    await pool.query('UPDATE landings SET asignado_a = ? WHERE id = ?', [req.user.userId, result.insertId]);
+
     const [rows] = await pool.query('SELECT * FROM landings WHERE id = ?', [result.insertId]);
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -90,7 +95,7 @@ export async function getLanding(req, res) {
 // PATCH /landings/:id — actualiza campos editables en borrador (#10)
 export async function updateLanding(req, res) {
   const { id } = req.params;
-  const { slug, nombre, editor_json, meta_title, meta_description, redirect_url } = req.body ?? {};
+  const { slug, nombre, editor_json, meta_title, meta_description, redirect_url, asignado_a } = req.body ?? {};
 
   try {
     const [existing] = await pool.query('SELECT id, slug FROM landings WHERE id = ?', [id]);
@@ -120,6 +125,7 @@ export async function updateLanding(req, res) {
     if (meta_title !== undefined) { fields.push('meta_title = ?'); values.push(meta_title); }
     if (meta_description !== undefined) { fields.push('meta_description = ?'); values.push(meta_description); }
     if (redirect_url !== undefined) { fields.push('redirect_url = ?'); values.push(redirect_url); }
+    if (asignado_a !== undefined) { fields.push('asignado_a = ?'); values.push(asignado_a || null); }
 
     if (fields.length > 0) {
       values.push(id);
@@ -159,16 +165,22 @@ export async function publishLanding(req, res) {
     }
 
     // Inyectar campos ocultos: landing slug, tratamiento de datos, action/method (#19, #21)
-    const processedHtml = injectFormFields(html, { slug: rows[0].slug });
+    const injectedHtml = injectFormFields(html, { slug: rows[0].slug });
 
-    // La sanitización completa con DOMPurify se agrega en Fase 5 (#25).
+    // Sanitización server-side (#25): elimina scripts, event handlers, javascript: URLs
+    const cleanHtml = sanitizeLandingHtml(injectedHtml);
+    const cleanCss = sanitizeLandingCss(css || '');
+
     await pool.query(
       `UPDATE landings
        SET estado = 'publicada', html_publicado = ?, css_publicado = ?,
            publicado_por = ?, published_at = NOW()
        WHERE id = ?`,
-      [processedHtml, css || '', req.user.userId, id]
+      [cleanHtml, cleanCss, req.user.userId, id]
     );
+
+    // Invalidar caché del slug (#14)
+    invalidateLanding(rows[0].slug);
 
     const [updated] = await pool.query('SELECT * FROM landings WHERE id = ?', [id]);
     res.json(updated[0]);
@@ -189,14 +201,12 @@ export async function updateStatus(req, res) {
   }
 
   try {
-    const [rows] = await pool.query('SELECT id FROM landings WHERE id = ?', [id]);
+    const [rows] = await pool.query('SELECT id, slug FROM landings WHERE id = ?', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Landing no encontrada' });
     }
 
-    const updates = { estado };
     if (estado === 'borrador') {
-      // Volver a borrador limpia el HTML publicado
       await pool.query(
         `UPDATE landings SET estado = ?, html_publicado = NULL, css_publicado = NULL, published_at = NULL WHERE id = ?`,
         [estado, id]
@@ -204,6 +214,9 @@ export async function updateStatus(req, res) {
     } else {
       await pool.query('UPDATE landings SET estado = ? WHERE id = ?', [estado, id]);
     }
+
+    // Invalidar caché (#14)
+    invalidateLanding(rows[0].slug);
 
     const [updated] = await pool.query('SELECT * FROM landings WHERE id = ?', [id]);
     res.json(updated[0]);

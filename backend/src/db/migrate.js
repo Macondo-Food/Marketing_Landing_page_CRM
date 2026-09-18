@@ -266,6 +266,22 @@ const COLUMN_MIGRATIONS = [
     column: 'landing',
     addSql: `ALTER TABLE utm_urls ADD COLUMN landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo' AFTER utm_term`,
   },
+  // Fase 5 — Asignación automática de leads por landing (#20)
+  {
+    table: 'landings',
+    column: 'asignado_a',
+    addSql: `ALTER TABLE landings ADD COLUMN asignado_a INT NULL AFTER redirect_url, ADD CONSTRAINT fk_landings_asignado FOREIGN KEY (asignado_a) REFERENCES usuarios(id) ON DELETE SET NULL`,
+  },
+  {
+    table: 'leads',
+    column: 'asignado_a',
+    addSql: `ALTER TABLE leads ADD COLUMN asignado_a INT NULL AFTER landing, ADD CONSTRAINT fk_leads_asignado FOREIGN KEY (asignado_a) REFERENCES usuarios(id) ON DELETE SET NULL`,
+  },
+  {
+    table: 'contactos',
+    column: 'asignado_a',
+    addSql: `ALTER TABLE contactos ADD COLUMN asignado_a INT NULL AFTER landing, ADD CONSTRAINT fk_contactos_asignado FOREIGN KEY (asignado_a) REFERENCES usuarios(id) ON DELETE SET NULL`,
+  },
 ];
 
 const PRIORIDAD_ENUM_FINAL = "enum('vip','alta','media_baja','en_revision')";

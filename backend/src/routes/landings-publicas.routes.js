@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import pool from '../db/connection.js';
+import { getCachedLanding, setCachedLanding } from '../services/landing-cache.service.js';
 
 const router = Router();
 
@@ -43,21 +44,32 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-// GET /:slug — busca landing publicada en DB. Si no existe, pasa al
-// siguiente middleware (SPA de React vía express.static).
+// GET /:slug — busca landing publicada (caché primero, DB fallback).
+// Si no existe, pasa al siguiente middleware (SPA de React).
 router.get('/:slug', async (req, res, next) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT slug, nombre, estado, html_publicado, css_publicado,
-              meta_title, meta_description, redirect_url
-       FROM landings WHERE slug = ?`,
-      [req.params.slug]
-    );
+    const { slug } = req.params;
 
-    if (rows.length === 0) return next();
+    // Intentar caché primero (#14)
+    let landing = getCachedLanding(slug);
 
-    const landing = rows[0];
+    if (!landing) {
+      const [rows] = await pool.query(
+        `SELECT slug, nombre, estado, html_publicado, css_publicado,
+                meta_title, meta_description, redirect_url
+         FROM landings WHERE slug = ?`,
+        [slug]
+      );
+      if (rows.length === 0) return next();
+      landing = rows[0];
 
+      // Solo cachear landings publicadas (las desactivadas pueden cambiar a redirect)
+      if (landing.estado === 'publicada') {
+        setCachedLanding(slug, landing);
+      }
+    }
+
+    // Redirección si está desactivada (#13)
     if (landing.estado === 'desactivada') {
       if (landing.redirect_url) {
         return res.redirect(301, landing.redirect_url);
@@ -72,6 +84,8 @@ router.get('/:slug', async (req, res, next) => {
     res.setHeader('Content-Security-Policy', CSP_HEADER);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer');
+    // Cache-Control para CDN/proxies (#15): público, 60s en edge, 300s stale-while-revalidate
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.type('html').send(buildFullHtml(landing));
   } catch (err) {
     console.error('[landings-publicas] error al servir landing:', err);

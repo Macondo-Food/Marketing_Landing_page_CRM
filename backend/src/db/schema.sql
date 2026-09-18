@@ -33,7 +33,9 @@ CREATE TABLE IF NOT EXISTS leads (
   calendar_event_id VARCHAR(255) NULL,
   reunion_fecha_hora DATETIME NULL,
   landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  asignado_a INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_leads_asignado FOREIGN KEY (asignado_a) REFERENCES usuarios(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS respuestas_quiz (
@@ -71,7 +73,9 @@ CREATE TABLE IF NOT EXISTS contactos (
   tratamiento_datos_aceptado BOOLEAN NOT NULL DEFAULT FALSE,
   tratamiento_datos_fecha DATETIME NULL,
   landing VARCHAR(100) NOT NULL DEFAULT 'vsl-macondo',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  asignado_a INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_contactos_asignado FOREIGN KEY (asignado_a) REFERENCES usuarios(id) ON DELETE SET NULL
 );
 
 -- Usuarios del CRM (Fase de sistema de usuarios con roles). El primer admin
@@ -133,6 +137,7 @@ CREATE TABLE IF NOT EXISTS landings (
   css_publicado LONGTEXT NULL,
   form_id INT NULL,
   redirect_url VARCHAR(500) NULL,
+  asignado_a INT NULL,
   meta_title VARCHAR(200) NULL,
   meta_description VARCHAR(300) NULL,
   creado_por INT NOT NULL,
